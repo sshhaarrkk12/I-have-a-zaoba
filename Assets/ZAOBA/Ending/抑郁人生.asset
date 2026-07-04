@@ -1,0 +1,29 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: "\u6291\u90C1\u4EBA\u751F"
+  m_EditorClassIdentifier: Assembly-CSharp::EndingData
+  endingId: 
+  endingTitle: "\u6291\u90C1\u4EBA\u751F"
+  endingDescription: "\u4F60\u6CA1\u80FD\u5B89\u7A33\u5EA6\u8FC7\u8FD9\u4E2A\u6708\u3002\u8FD9\u4E2A\u6708\u4F60\u663C\u591C\u98A0\u5012\uFF0C\u996E\u98DF\u4E0D\u89C4\u5F8B\u4E0D\u5065\u5EB7\uFF0C\u7F3A\u4E4F\u8FD0\u52A8\uFF0C\u8EAB\u4F53\u53D8\u5F97\u975E\u5E38\u7CDF\u7CD5\u3002\u4F60\u8FDB\u533B\u9662\u4E86\u3002\u6CA1\u80FD\u5B8C\u6210\u672C\u5B66\u671F\u7684\u5927\u5B66\u751F\u6D3B\u4F53\u9A8C\u3002\u5E0C\u671B\u4F60\u56DE\u6765\u65F6\u80FD\u591F\u5E73\u5B89\u5EA6\u8FC7\uFF01"
+  triggerOnDayEnd: 1
+  triggerOnStatBreak: 0
+  triggerOnEventTag: 0
+  dayEndConditions: []
+  breakStat: 0
+  breakCompare: 0
+  breakValue: 30
+  triggerTag: 
+  priority: 0
+  endingDialogue: {fileID: 0}
+  endingCG: {fileID: 0}
+  endingType: 1

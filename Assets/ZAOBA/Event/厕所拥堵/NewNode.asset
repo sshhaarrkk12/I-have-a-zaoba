@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1fc406f01b4bc3249b74a4310dc498c5, type: 3}
+  m_Name: NewNode
+  m_EditorClassIdentifier: 
+  editorLabel: 
+  characterName: "\u6211"
+  text: "\u6211\u53BB\u4EBA\u8FD9\u4E48\u591A\uFF0C\u53EA\u80FD\u7B49\u7B49\u4E86"
+  portrait: {fileID: 21300000, guid: 4fbdc0ede230bfb45b3193ecadfe029d, type: 3}
+  statsDelta:
+    mood: -2
+    stamina: 0
+    stress: 0
+    fatigue: 0
+    academic: 0
+    social: 0
+  triggerEventId: 
+  next: {fileID: 11400000, guid: 84e151f806af3114a9783b91dd56a3f9, type: 2}
+  choices: []
