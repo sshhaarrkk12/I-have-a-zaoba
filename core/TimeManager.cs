@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System;
+using System.Collections.Generic;
 using UnityEngine.SceneManagement;
 
 public class TimeManager : MonoBehaviour
@@ -10,15 +11,22 @@ public class TimeManager : MonoBehaviour
     [Header("时间设置")]
     public float gameHour = 6.5f;
     public float realSecondsPerGameHour = 60f;
-    public bool isPaused = false;
+    public bool isPaused = true;
 
     [Header("关键时间点")]
     public float classStartTime = 8.0f;
     public float noonTime = 12.0f;
     public float sleepTime = 23.0f;
 
+    [Header("推进规则")]
+    [Tooltip("关闭后，时间只会在交互/场景切换时由脚本手动推进")]
+    public bool autoAdvanceEnabled = false;
+    [Tooltip("默认场景切换时推进的小时数")]
+    public float defaultSceneTransitionHours = 0.08f;
+    public List<SceneTransitionTimeRule> sceneTransitionRules = new List<SceneTransitionTimeRule>();
+
     public static event Action<float> OnTimeChanged;
-    public static event Action OnClassWarning;   // 上课前预警（仅通知，不暂停）
+    public static event Action OnClassWarning;
     public static event Action OnClassStart;
     public static event Action OnNoon;
     public static event Action OnSleep;
@@ -29,13 +37,14 @@ public class TimeManager : MonoBehaviour
     bool sleepFired = false;
     bool alarmFired = false;
 
-    float _debugTimer = 0f;
+    string previousSceneName = string.Empty;
 
     void Awake()
     {
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
+        isPaused = true;
     }
 
     void OnEnable() => SceneManager.sceneLoaded += OnSceneLoaded;
@@ -43,25 +52,32 @@ public class TimeManager : MonoBehaviour
 
     void OnSceneLoaded(Scene scene, LoadSceneMode mode)
     {
-        // PhoneUI 是叠加在主场景上的 UI，不重置暂停状态
-        // 其余所有场景加载完成后，时间默认恢复运行
-        if (scene.name != "PhoneUI")
-            isPaused = false;
+        isPaused = true;
 
-        Debug.Log($"[Time] 场景: {scene.name} 时间: {GetFormattedTime()} isPaused={isPaused}");
+        if (string.IsNullOrEmpty(previousSceneName))
+        {
+            previousSceneName = scene.name;
+            return;
+        }
+
+        if (previousSceneName != scene.name)
+        {
+            float hours = GetTransitionHours(previousSceneName, scene.name);
+            if (hours > 0f)
+            {
+                AdvanceTime(hours);
+                Debug.Log($"[Time] 场景切换 {previousSceneName} -> {scene.name}，推进 {hours:F2} 小时");
+            }
+        }
+
+        previousSceneName = scene.name;
     }
 
     void Update()
     {
-        _debugTimer += Time.deltaTime;
-        if (_debugTimer >= 1f)
-        {
-            _debugTimer = 0f;
-            Debug.Log($"[Time] gameHour={gameHour:F2} isPaused={isPaused}");
-        }
-
         if (isPaused) return;
-        AdvanceTime(Time.deltaTime / realSecondsPerGameHour);
+        if (autoAdvanceEnabled)
+            AdvanceTime(Time.deltaTime / realSecondsPerGameHour);
     }
 
     public void AdvanceTime(float hours)
@@ -69,14 +85,12 @@ public class TimeManager : MonoBehaviour
         gameHour += hours;
         OnTimeChanged?.Invoke(gameHour);
 
-        // ── 上课预警（距上课 15 分钟）：只发通知，绝不暂停时间 ──
         if (!classWarningFired && gameHour >= classStartTime - 0.25f)
         {
             classWarningFired = true;
             OnClassWarning?.Invoke();
         }
 
-        // ── 正式上课 ──
         if (!classStartFired && gameHour >= classStartTime)
         {
             classStartFired = true;
@@ -84,7 +98,6 @@ public class TimeManager : MonoBehaviour
             HandleLateness();
         }
 
-        // ── 中午：暂停时间，交由 GameManager 处理场景跳转 ──
         if (!noonFired && gameHour >= noonTime)
         {
             noonFired = true;
@@ -93,7 +106,6 @@ public class TimeManager : MonoBehaviour
             GameManager.Instance?.TransitionToNoonPhase();
         }
 
-        // ── 睡眠时间 ──
         if (!sleepFired && gameHour >= sleepTime)
         {
             sleepFired = true;
@@ -101,10 +113,7 @@ public class TimeManager : MonoBehaviour
             OnSleep?.Invoke();
         }
 
-        // ── 闹钟 ──
-        // 只在早晨场景触发：Classroom 场景里闹钟已经没有意义，
-        // 且 alarmTime 默认 7.5f 会导致课堂时间莫名暂停
-        bool inMorningScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "Classroom";
+        bool inMorningScene = SceneManager.GetActiveScene().name != "Classroom";
         if (!alarmFired
             && inMorningScene
             && PlayerStats.Instance != null
@@ -138,9 +147,23 @@ public class TimeManager : MonoBehaviour
         classWarningFired = false;
         classStartFired = false;
         noonFired = false;
-        sleepFired = false;   // 修复：原来重复写了两次 sleepFired = false
+        sleepFired = false;
         alarmFired = false;
-        isPaused = false;
+        isPaused = true;
+        previousSceneName = string.Empty;
+    }
+
+    float GetTransitionHours(string fromScene, string toScene)
+    {
+        foreach (var rule in sceneTransitionRules)
+        {
+            if (rule == null) continue;
+            if (string.Equals(rule.fromScene, fromScene, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(rule.toScene, toScene, StringComparison.OrdinalIgnoreCase))
+                return rule.hours;
+        }
+
+        return defaultSceneTransitionHours;
     }
 
     void HandleLateness()
@@ -158,4 +181,12 @@ public class TimeManager : MonoBehaviour
             Debug.Log("迟到了！压力+15，心情-10");
         }
     }
+}
+
+[Serializable]
+public class SceneTransitionTimeRule
+{
+    public string fromScene;
+    public string toScene;
+    [Range(0f, 2f)] public float hours = 0.08f;
 }

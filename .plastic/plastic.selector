@@ -1,0 +1,4 @@
+repository "ZAOBA@tj_organization_33263368283977@cloud.cn"
+  path "/"
+    br "/main"
+    co "/main"
