@@ -1,0 +1,30 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 0}
+  m_Name: "\u98CE\u8BC4\u6700\u5DEE\uFF08\u6700\u4E0D\u5403\u538B\u529B\uFF09\u4E4B\u4EBA"
+  m_EditorClassIdentifier: Assembly-CSharp::EndingData
+  endingId: 
+  endingTitle: "\u98CE\u8BC4\u6700\u5DEE\uFF08\u6700\u4E0D\u5403\u538B\u529B\uFF09\u4E4B\u4EBA"
+  endingDescription: "\u4F60\u6CA1\u80FD\u5B89\u7A33\u5EA6\u8FC7\u8FD9\u4E2A\u6708\u3002\u8FD9\u4E2A\u6708\u4F60\u5B8C\u5168\u4E0D\u5728\u610F\u522B\u4EBA\u7684\u773C\u5149\uFF0C\u628A\u6240\u6709\u4EBA\u90FD\u5F97\u7F6A\u4E86\u4E00\u904D\uFF0C\u5B66\u6821\u91CC\u9762\u5230\u5904\u90FD\u662F\u5173\u4E8E\u4F60\u7684\u8D85\u7EA7\u6076\u8BC4\uFF0C\u4F46\u662F\u4F60\u7684\u4EBA\u751F\u4FE1\u6761\u662F\u201C\u9664\u4E86\u8001\u5DF1I
+    don\u2019t care\u201D\uFF0C\u6240\u4EE5\u5BF9\u4F60\u5E76\u65E0\u5F71\u54CD\u3002\u6709\u8FD9\u6837\u7684\u5FC3\u6001\u505A\u4EC0\u4E48\u90FD\u80FD\u6210\u529F\u7684\uFF0C\u9664\u4E86\u5E73\u7A33\u5EA6\u8FC7\u5927\u5B66\u751F\u6D3B\u3002"
+  triggerOnDayEnd: 1
+  triggerOnStatBreak: 0
+  triggerOnEventTag: 0
+  dayEndConditions: []
+  breakStat: 8
+  breakCompare: 0
+  breakValue: 30
+  triggerTag: 
+  priority: 0
+  endingDialogue: {fileID: 0}
+  endingCG: {fileID: 0}
+  endingType: 1

@@ -1,0 +1,35 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21a38c8a7123e384996d0ae58b18bc1a, type: 3}
+  m_Name: "\u62E5\u6324"
+  m_EditorClassIdentifier: 
+  eventId: "\u5395\u6240\u62E5\u6324"
+  eventTitle: 
+  isEnabled: 1
+  editorNote: 
+  triggerType: 0
+  timing: 5
+  triggerChance: 0.776
+  requiredTags: []
+  triggerAfterHour: 7.5
+  triggerBeforeHour: 8
+  exactTriggerHour: 8
+  conditionStat: 0
+  conditionCompare: 0
+  conditionValue: 100
+  minDay: 1
+  maxDay: 30
+  triggerScenes:
+  - Washroom
+  triggerOnce: 1
+  dialogue: {fileID: 11400000, guid: 17a949f811f93f84987cabf5d8c8692c, type: 2}
+  followUpEventId: 

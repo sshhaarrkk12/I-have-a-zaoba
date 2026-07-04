@@ -1,0 +1,49 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fdfbebfdf4859104aa696fe805db767f, type: 3}
+  m_Name: class
+  m_EditorClassIdentifier: 
+  eventId: 1
+  eventTitle: "\u8FDF\u5230"
+  eventDescription: "\u8001\u5E08\uFF1A\u4F60\u8FDF\u5230\u4E86\uFF0C\u6263\u5206"
+  triggerType: 0
+  timing: 1
+  triggerChance: 1
+  requiredTags: []
+  minDay: 1
+  maxDay: 30
+  conditionStat: 0
+  conditionCompare: 0
+  conditionValue: 100
+  triggerOnce: 1
+  moodDelta: 0
+  instantStaminaDelta: 0
+  coreStaminaDelta: 0
+  instantStressDelta: 0
+  coreStressDelta: 0
+  fatigueDelta: 0
+  choices:
+  - choiceText: NB
+    moodDelta: 0
+    staminaDelta: 0
+    stressDelta: 0
+    fatigueDelta: 0
+    followUpEventId: 
+  - choiceText: MyBad
+    moodDelta: 0
+    staminaDelta: 0
+    stressDelta: 0
+    fatigueDelta: 0
+    followUpEventId: 
+  followUpEventId: 
+  isEnabled: 1
+  editorNote: 

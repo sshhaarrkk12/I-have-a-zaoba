@@ -1,0 +1,38 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21a38c8a7123e384996d0ae58b18bc1a, type: 3}
+  m_Name: "\u5BA4\u53CB\u6C42\u5E2E\u5FD9"
+  m_EditorClassIdentifier: 
+  eventId: 1
+  eventTitle: "\u5BA4\u53CB\u6C42\u5E2E\u5FD9"
+  isEnabled: 1
+  editorNote: 
+  triggerType: 0
+  timing: 0
+  triggerChance: 0.306
+  requiredTags: []
+  triggerAfterHour: 7
+  triggerBeforeHour: 8
+  exactTriggerHour: 0
+  conditionStat: 8
+  conditionCompare: 1
+  conditionValue: 40
+  minDay: 1
+  maxDay: 30
+  triggerScenes:
+  - Classroom
+  - GoOut
+  - "\u6559\u5B66\u697C"
+  - Canteen
+  triggerOnce: 0
+  dialogue: {fileID: 11400000, guid: ed5f95a60ccefc541861c35ab25baae6, type: 2}
+  followUpEventId: 
