@@ -4,6 +4,7 @@ using TMPro;
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using Unity.VisualScripting;
 
 // ─────────────────────────────────────────────
 //  DialogueLine：单行对话数据（全局唯一定义）
@@ -45,6 +46,7 @@ public class DialogueManager : MonoBehaviour
     public GameObject choicesRoot;
     public List<Button> choiceButtons;
     public List<TextMeshProUGUI> choiceLabels;
+    
 
     [Header("其他")]
     public GameObject clickHint;
@@ -56,6 +58,10 @@ public class DialogueManager : MonoBehaviour
     public float autoCloseDelay = 2f;
     public Sprite defaultPortrait;
 
+    [Header("补丁")]
+    public GameObject wakeUpMGRGameObject;
+    public WakeUpSceneManager wakeUpSceneManager;
+
     public bool IsDialogueActive => dialogueRoot != null && dialogueRoot.activeSelf;
 
     bool isTyping = false;
@@ -65,6 +71,12 @@ public class DialogueManager : MonoBehaviour
 
     [Header("DialogueCanvas 根物体（顶层，DontDestroyOnLoad）")]
     public GameObject dialogueCanvas;
+
+    void Start()
+    {
+
+        wakeUpSceneManager = wakeUpMGRGameObject.GetComponent<WakeUpSceneManager>();
+    }
 
     void Awake()
     {
@@ -232,6 +244,8 @@ public class DialogueManager : MonoBehaviour
             }
             else btn.gameObject.SetActive(false);
         }
+
+        
     }
 
     IEnumerator TypeText(string text, float speed)
@@ -265,4 +279,12 @@ public class DialogueManager : MonoBehaviour
     }
 
     void SetActive(GameObject go, bool active) { if (go != null) go.SetActive(active); }
+
+    //呱：这个是我打的补丁 给一开始消失不掉的状态文字搞的
+    public void OnButtonClick()
+    {
+       
+       // wakeUpSceneManager.ClearWakeUpText();
+     
+    }
 }
