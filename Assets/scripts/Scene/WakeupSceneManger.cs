@@ -496,4 +496,14 @@ public class WakeUpSceneManager : MonoBehaviour
         screenOverlay.color = new Color(c.r, c.g, c.b, alpha);
         screenOverlay.raycastTarget = alpha > 0.5f;
     }
+
+    /*
+    public void ClearWakeUpText()
+    {
+        Debug.Log($"[Clear] 游戏对象：{gameObject.name}，实例ID：{GetInstanceID()}");
+        Debug.Log($"[Clear] 清空前文字：\"{statusText.text}\"");
+        statusText.text = "";
+        Debug.Log($"[Clear] 清空后文字：\"{statusText.text}\"");
+    }
+    */
 }
