@@ -24,7 +24,7 @@ public class SceneNavigator : MonoBehaviour
 
     void Start()
     {
-        Bind(toWakeUp, "WakeUp");
+        Bind(toWakeUp, "Wakeup");
         Bind(toDormHub, "DormHub");
         Bind(toWashing, "Washing");
         Bind(toDressing, "Dressing");

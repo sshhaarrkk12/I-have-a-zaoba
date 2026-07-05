@@ -38,7 +38,7 @@ public class MainMenuManager : MonoBehaviour
         "所有为早八奋斗过的同学们";
 
     [Header("过渡设置")]
-    public string gameSceneName = "WakeUp";
+    public string gameSceneName = "Wakeup";
     public float fadeTime = 1f;
     public Image fadeOverlay;           // 全屏黑色遮罩
 

@@ -2574,7 +2574,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dde765e5b908bad458fa4892120e464d, type: 3}
   m_Name: 
   m_EditorClassIdentifier: 
-  wakeUpScene: WakeUp
+  wakeUpScene: Wakeup
   dormHubScene: DormHub
   washingScene: Washing
   dressingScene: Dressing

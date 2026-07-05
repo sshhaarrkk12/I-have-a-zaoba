@@ -10,7 +10,7 @@ public class GameManager : MonoBehaviour
     public GamePhase currentPhase { get; private set; }
 
     [Header("场景名称 - 必须和 Build Settings 完全一致")]
-    public string wakeUpScene = "WakeUp";
+    public string wakeUpScene = "Wakeup";
     public string dormHubScene = "DormHub";
     public string washingScene = "Washing";
     public string dressingScene = "Dressing";
@@ -43,7 +43,7 @@ public class GameManager : MonoBehaviour
         if (playerStats == null) { Debug.LogError("[GM] PlayerStats未找到"); return; }
 
         ResetPlayerStats();
-        StartDay();
+        StartDay(SceneManager.GetActiveScene().name != wakeUpScene);
     }
 
     void ResetPlayerStats()
@@ -67,14 +67,23 @@ public class GameManager : MonoBehaviour
 
     public void StartDay()
     {
+        StartDay(true);
+    }
+
+    void StartDay(bool loadWakeUpScene)
+    {
         Debug.Log($"[GM] === Day {playerStats.currentDay} ===");
         ChangePhase(GamePhase.WakeUp);
         float wakeTime = SleepSystem.CalculateWakeUpTime(playerStats);
         playerStats.wakeUpTime = wakeTime;
         TimeManager.Instance?.ResetForNewDay(wakeTime);
         playerStats.NewDayReset();
-        LoadScene(wakeUpScene);
-        // 淡出黑幕
+
+        if (loadWakeUpScene)
+            LoadScene(wakeUpScene);
+        else
+            SceneStateManager.Instance?.SetCurrentScene(wakeUpScene);
+
         UIManager.Instance?.ShowFade(false, 1f);
     }
 

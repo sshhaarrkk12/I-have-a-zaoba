@@ -637,7 +637,7 @@ MonoBehaviour:
   creditsBackButton: {fileID: 797762042}
   creditsText: {fileID: 1912554582}
   creditsContent: "\u65E9\u516B\u6A21\u62DF\u5668\n\n\u5236\u4F5C\u56E2\u961F\n\n\u7B56\u5212\nXXX\n\n\u7A0B\u5E8F\nXXX\n\n\u7F8E\u672F\nXXX\n\n\u97F3\u6548\nXXX\n\n\u7279\u522B\u611F\u8C22\n\u6240\u6709\u4E3A\u65E9\u516B\u594B\u6597\u8FC7\u7684\u540C\u5B66\u4EEC"
-  gameSceneName: WakeUp
+  gameSceneName: Wakeup
   fadeTime: 1
   fadeOverlay: {fileID: 1786760498}
 --- !u!4 &505518252
