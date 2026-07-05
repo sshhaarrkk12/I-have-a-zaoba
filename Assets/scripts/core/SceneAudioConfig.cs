@@ -12,11 +12,9 @@ public class SceneAudioConfig : MonoBehaviour
     private void Start()
     {
         if (!playOnStart) return;
-        if (musicClip == null) return;
         if (AudioManager.Instance != null)
         {
-            AudioManager.Instance.SetMusicVolume(musicVolume);
-            AudioManager.Instance.PlayMusic(musicClip, loop);
+            AudioManager.Instance.ApplySceneMusic(musicClip, loop, musicVolume);
         }
     }
 }

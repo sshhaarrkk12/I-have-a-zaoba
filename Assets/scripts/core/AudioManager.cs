@@ -1,19 +1,21 @@
 using System.Collections;
-using System.Collections.Generic;
 using UnityEngine;
 
 public class AudioManager : MonoBehaviour
 {
     public static AudioManager Instance { get; private set; }
 
+    [Header("Audio Sources")]
     [SerializeField] private AudioSource musicSource;
     [SerializeField] private AudioSource sfxSource;
-    [SerializeField] private bool playMusicOnStart = false;
-    [SerializeField] private string startMusicName = "";
 
-    private readonly Dictionary<string, AudioClip> clips = new Dictionary<string, AudioClip>();
+    [Header("Default Scene Audio")]
+    [SerializeField] private bool playMusicOnStart = false;
+    [SerializeField] private AudioClip startMusicClip;
+
     private float musicVolume = 1f;
     private float sfxVolume = 1f;
+    private AudioClip currentMusicClip;
 
     private void Awake()
     {
@@ -26,13 +28,12 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureAudioSources();
-        LoadClipsFromResources();
     }
 
     private void Start()
     {
-        if (playMusicOnStart && !string.IsNullOrEmpty(startMusicName))
-            PlayMusic(startMusicName, true);
+        if (playMusicOnStart && startMusicClip != null)
+            PlayMusic(startMusicClip, true);
     }
 
     private void EnsureAudioSources()
@@ -54,47 +55,14 @@ public class AudioManager : MonoBehaviour
         }
     }
 
-    private void LoadClipsFromResources()
-    {
-        var loaded = Resources.LoadAll<AudioClip>("Audio");
-        foreach (var clip in loaded)
-        {
-            if (clip == null) continue;
-            if (!clips.ContainsKey(clip.name)) clips.Add(clip.name, clip);
-        }
-    }
-
-    public bool RegisterClip(AudioClip clip)
-    {
-        if (clip == null) return false;
-        if (clips.ContainsKey(clip.name)) return false;
-        clips.Add(clip.name, clip);
-        return true;
-    }
-
-    public bool PlayMusic(string name, bool loop = true, float fadeTime = 0.0f)
-    {
-        if (!clips.TryGetValue(name, out var clip)) return false;
-        if (musicSource.clip == clip && musicSource.isPlaying) return true;
-        if (fadeTime > 0f && musicSource.isPlaying)
-        {
-            StartCoroutine(FadeOutIn(clip, loop, fadeTime));
-        }
-        else
-        {
-            musicSource.clip = clip;
-            musicSource.loop = loop;
-            musicSource.volume = musicVolume;
-            musicSource.Play();
-        }
-
-        return true;
-    }
-
     public bool PlayMusic(AudioClip clip, bool loop = true, float fadeTime = 0.0f)
     {
         if (clip == null) return false;
+        if (musicSource == null) EnsureAudioSources();
         if (musicSource.clip == clip && musicSource.isPlaying) return true;
+
+        currentMusicClip = clip;
+
         if (fadeTime > 0f && musicSource.isPlaying)
         {
             StartCoroutine(FadeOutIn(clip, loop, fadeTime));
@@ -107,6 +75,31 @@ public class AudioManager : MonoBehaviour
             musicSource.Play();
         }
 
+        return true;
+    }
+
+    public bool ApplySceneMusic(AudioClip clip, bool loop = true, float volume = 1f)
+    {
+        if (clip == null)
+        {
+            if (musicSource != null && musicSource.isPlaying)
+            {
+                SetMusicVolume(volume);
+                return true;
+            }
+
+            return false;
+        }
+
+        if (musicSource == null) EnsureAudioSources();
+        if (musicSource.clip == clip && musicSource.isPlaying) return true;
+
+        SetMusicVolume(volume);
+        currentMusicClip = clip;
+        musicSource.clip = clip;
+        musicSource.loop = loop;
+        musicSource.volume = musicVolume;
+        musicSource.Play();
         return true;
     }
 
@@ -139,12 +132,14 @@ public class AudioManager : MonoBehaviour
 
     public void StopMusic()
     {
-        musicSource.Stop();
+        if (musicSource != null)
+            musicSource.Stop();
     }
 
-    public bool PlaySFX(string name, float volume = 1f)
+    public bool PlaySFX(AudioClip clip, float volume = 1f)
     {
-        if (!clips.TryGetValue(name, out var clip)) return false;
+        if (clip == null) return false;
+        if (sfxSource == null) EnsureAudioSources();
         sfxSource.PlayOneShot(clip, volume * sfxVolume);
         return true;
     }

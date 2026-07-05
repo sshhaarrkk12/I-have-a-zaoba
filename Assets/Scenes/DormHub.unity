@@ -1903,11 +1903,15 @@ PrefabInstance:
     - target: {fileID: 3649387836149677968, guid: e28ec763f91752b4699a7ee154491db3, type: 3}
       propertyPath: m_fontAsset
       value: 
-      objectReference: {fileID: 11400000, guid: 4a077b93169c63a488ed4105b03fc8a9, type: 2}
+      objectReference: {fileID: 11400000, guid: c7221bb048c2b0e45bd6d4b692a0a745, type: 2}
     - target: {fileID: 3649387836149677968, guid: e28ec763f91752b4699a7ee154491db3, type: 3}
       propertyPath: m_sharedMaterial
       value: 
-      objectReference: {fileID: 5055507870082197252, guid: 4a077b93169c63a488ed4105b03fc8a9, type: 2}
+      objectReference: {fileID: 3840272676047876408, guid: c7221bb048c2b0e45bd6d4b692a0a745, type: 2}
+    - target: {fileID: 3649387836149677968, guid: e28ec763f91752b4699a7ee154491db3, type: 3}
+      propertyPath: m_hasFontAssetChanged
+      value: 0
+      objectReference: {fileID: 0}
     - target: {fileID: 4046474876876504923, guid: e28ec763f91752b4699a7ee154491db3, type: 3}
       propertyPath: m_Name
       value: StatsHUD
