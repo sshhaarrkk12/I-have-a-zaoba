@@ -16,6 +16,21 @@ public class WashroomManager : MonoBehaviour
 
     private bool hasChosen = false;
 
+
+
+    //呱：进行选项对应字幕演出的补丁
+    [Header("遮罩")]
+    [SerializeField] private Image mask;
+    [SerializeField] private float lastingTime = 2f;
+    [SerializeField] private float duration = 0.5f;
+
+    //呱：管理神秘的三个按钮
+    [Tooltip("这里请拖入三个过场选择按钮")]
+    [Header("按钮")]
+    [SerializeField] private Button button1;
+    [SerializeField] private Button button2;
+    [SerializeField] private Button button3;
+
     void Start()
     {
         if (washButton != null) washButton.onClick.AddListener(() => OnOptionSelected(1));
@@ -41,17 +56,17 @@ public class WashroomManager : MonoBehaviour
             case 1:
                 minutesToSpend = 5;
                 moodReward = 5f;
-                reviewText = "刷牙洗脸一条龙，虽然素面朝天，但胜在速度够快，出发！";
+                reviewText = "刷牙洗脸一条龙，虽然素面朝天，\n但胜在速度够快，出发！";
                 break;
             case 2:
                 minutesToSpend = 15;
                 moodReward = 10f;
-                reviewText = "稍微描个眉、涂个口红，整个人看起来气色好多了。";
+                reviewText = "稍微描个眉、涂个口红，\n整个人看起来气色好多了。";
                 break;
             case 3:
                 minutesToSpend = 40;
                 moodReward = 20f;
-                reviewText = "粉底、眼影、高光、修容……搞定！镜子里的我今天简直完美！";
+                reviewText = "粉底、眼影、高光、修容……搞定！\n镜子里的我今天简直完美！";
                 break;
         }
 
@@ -106,8 +121,93 @@ public class WashroomManager : MonoBehaviour
 
     private void SetActionButtonsInteractable(bool state)
     {
-        if (washButton != null) washButton.interactable = state;
-        if (lightMakeupButton != null) lightMakeupButton.interactable = state;
-        if (fullMakeupButton != null) fullMakeupButton.interactable = state;
+        if (washButton != null)
+        {
+            washButton.interactable = state;
+            washButton.gameObject.SetActive(state);
+            StartMask(state);
+        }
+            
+        if (lightMakeupButton != null)
+        {
+            lightMakeupButton.interactable = state;
+            lightMakeupButton.gameObject.SetActive(state);
+            StartMask(state);
+        }
+            
+        if (fullMakeupButton != null)
+        {
+            fullMakeupButton.interactable = state;
+            fullMakeupButton.gameObject.SetActive(state);
+            StartMask(state);
+        }
+            
+    }
+
+    void StartMask(bool buttonState)
+    {
+        //呱：如果没点击按钮就返回
+        if (buttonState == true) return;
+
+        mask.color = new Color(0, 0, 0, 0);
+        mask.gameObject.SetActive(!buttonState);
+        StartCoroutine(WaitAndFade());
+
+    }
+
+    IEnumerator WaitAndFade()
+    {
+        //呱:渐显黑幕
+        yield return Emerge(mask, duration);
+
+
+        //呱：等待字幕显示
+        yield return new WaitForSeconds(lastingTime);
+
+
+        //呱：渐隐黑幕
+        yield return Vanish(mask, duration);
+
+
+        SetButtonState(button1, true);
+        SetButtonState(button2, true);
+        SetButtonState(button3, true);
+    }
+
+    //呱：渐显
+    IEnumerator Emerge(Image image, float duration)
+    {
+
+        float duringTime = 0;
+        while (duringTime < duration)
+        {
+            duringTime += Time.deltaTime;
+            image.color = new Color(0, 0, 0, duringTime / duration);
+            yield return null;
+        }
+
+        image.color = new Color(0, 0, 0, 1);
+    }
+
+    //呱：渐隐
+    IEnumerator Vanish(Image image, float duration)
+    {
+        float duringTime = 0;
+        while (duringTime < duration)
+        {
+            duringTime += Time.deltaTime;
+            image.color = new Color(0, 0, 0, 1 - (duringTime / duration));
+            yield return null;
+        }
+
+        image.color = new Color(0, 0, 0, 0);
+        mask.gameObject.SetActive(false);
+        dialogueText.text = "";
+    }
+
+
+    void SetButtonState(Button button, bool state)
+    {
+        button.gameObject.SetActive(state);
     }
 }

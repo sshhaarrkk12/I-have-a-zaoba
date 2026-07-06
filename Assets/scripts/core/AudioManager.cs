@@ -1,5 +1,6 @@
 using System.Collections;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 
 public class AudioManager : MonoBehaviour
 {
@@ -28,6 +29,29 @@ public class AudioManager : MonoBehaviour
         Instance = this;
         DontDestroyOnLoad(gameObject);
         EnsureAudioSources();
+        SceneManager.sceneLoaded += OnSceneLoaded;
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+        {
+            SceneManager.sceneLoaded -= OnSceneLoaded;
+        }
+    }
+
+    private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
+    {
+        var roots = scene.GetRootGameObjects();
+        foreach (var root in roots)
+        {
+            var cfg = root.GetComponentInChildren<SceneAudioConfig>(true);
+            if (cfg != null && cfg.playOnStart)
+            {
+                ApplySceneMusic(cfg.musicClip, cfg.loop, cfg.musicVolume);
+                return;
+            }
+        }
     }
 
     private void Start()
