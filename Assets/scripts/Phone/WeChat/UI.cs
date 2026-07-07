@@ -47,7 +47,7 @@ public class ChatBubbleUI : MonoBehaviour
         // 你可以在Inspector里设置好PlayerBubble和NPCBubble两个Prefab，这样更简单。
         // 这里提供的是单Prefab控制逻辑：
         layoutGroup.childAlignment = isPlayer ? TextAnchor.MiddleRight : TextAnchor.MiddleLeft;
-        bubbleBackground.GetComponent<Image>().color = isPlayer ? new Color(0.6f, 0.9f, 0.6f) : Color.white; // 玩家绿色，NPC白色
+        bubbleBackground.GetComponent<Image>().color = isPlayer ? GamePalette.Good : Color.white; // 玩家绿色，NPC白色
     }
 }
 

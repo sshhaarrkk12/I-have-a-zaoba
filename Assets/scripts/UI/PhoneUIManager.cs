@@ -163,7 +163,7 @@ public class PhoneUIManager : MonoBehaviour
         var ckRT = ck.AddComponent<RectTransform>();
         ckRT.sizeDelta = new Vector2(22, 22);
         var ckImg = ck.AddComponent<Image>();
-        ckImg.color = new Color(0.2f, 0.85f, 0.45f);
+        ckImg.color = GamePalette.Good;
         toggle.graphic = ckImg;
 
         // ====== �����޸Ĳ��� ======

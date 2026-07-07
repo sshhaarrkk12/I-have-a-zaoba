@@ -28,6 +28,11 @@ public class DormSceneManager : MonoBehaviour
 
     void Start()
     {
+        MorningRoutineState.SyncDay();
+        isWashed = MorningRoutineState.WashingDone;
+        isDressed = MorningRoutineState.DressingDone;
+        isPacked = MorningRoutineState.PackingDone;
+
         TimeManager.OnTimeChanged += OnTimeUpdate;
         if (TimeManager.Instance != null)
             OnTimeUpdate(TimeManager.Instance.gameHour);
@@ -49,7 +54,7 @@ public class DormSceneManager : MonoBehaviour
         float minutes = TimeManager.Instance.MinutesToClass();
         if (minutes <= 15 && minutes > 0)
         {
-            if (timeText != null) timeText.color = Color.red;
+            if (timeText != null) timeText.color = GamePalette.Bad;
             if (statusBar != null) statusBar.text = $"距离上课还有 {(int)minutes} 分钟！";
         }
     }
@@ -61,9 +66,9 @@ public class DormSceneManager : MonoBehaviour
         if (packIcon != null) packIcon.SetActive(!isPacked);
     }
 
-    public void ShowWashPanel() { SetMain(false); if (washPanel != null) washPanel.SetActive(true); }
-    public void ShowDressPanel() { SetMain(false); if (dressingPanel != null) dressingPanel.SetActive(true); }
-    public void ShowPackingPanel() { SetMain(false); if (packingPanel != null) packingPanel.SetActive(true); }
+    public void ShowWashPanel() { if (isWashed) return; SetMain(false); if (washPanel != null) washPanel.SetActive(true); }
+    public void ShowDressPanel() { if (isDressed) return; SetMain(false); if (dressingPanel != null) dressingPanel.SetActive(true); }
+    public void ShowPackingPanel() { if (isPacked) return; SetMain(false); if (packingPanel != null) packingPanel.SetActive(true); }
     public void ShowNavPanel() { SetMain(false); if (navigationPanel != null) navigationPanel.SetActive(true); }
 
     void SetMain(bool on) { if (mainMenuPanel != null) mainMenuPanel.SetActive(on); }
@@ -83,10 +88,13 @@ public class DormSceneManager : MonoBehaviour
 
     void DoWash(bool isQuick)
     {
+        if (isWashed) return;
+
         TimeManager.Instance.SpendTime(isQuick ? 0.083f : 0.25f);
         PlayerStats.Instance.ChangeMood(isQuick ? 2f : 8f);
         PlayerStats.Instance.AddFatigue(isQuick ? -2f : -8f);
         isWashed = true;
+        MorningRoutineState.MarkDone("Washing");
         ShowStatus(isQuick ? "快速洗漱完毕" : "认真洗漱，神清气爽");
         BackToMain();
     }
@@ -97,10 +105,13 @@ public class DormSceneManager : MonoBehaviour
 
     void DoChangeClothes(string option)
     {
+        if (isDressed) return;
+
         if (option == "quick") { TimeManager.Instance.SpendTime(0.05f); }
         else if (option == "normal") { TimeManager.Instance.SpendTime(0.1f); PlayerStats.Instance.ChangeMood(5f); }
         else { TimeManager.Instance.SpendTime(0.25f); PlayerStats.Instance.ChangeMood(12f); PlayerStats.Instance.AddFatigue(3f); }
         isDressed = true;
+        MorningRoutineState.MarkDone("Dressing");
         ShowStatus("换好衣服了");
         BackToMain();
     }
@@ -110,6 +121,8 @@ public class DormSceneManager : MonoBehaviour
 
     void DoPackBag(bool careful)
     {
+        if (isPacked) return;
+
         TimeManager.Instance.SpendTime(careful ? 0.1f : 0.05f);
         if (!careful && Random.value < 0.3f)
         {
@@ -120,6 +133,7 @@ public class DormSceneManager : MonoBehaviour
         }
         else { ShowStatus("书包收拾好了"); }
         isPacked = true;
+        MorningRoutineState.MarkDone("Packing");
         BackToMain();
     }
 

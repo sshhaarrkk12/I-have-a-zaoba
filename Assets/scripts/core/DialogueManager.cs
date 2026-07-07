@@ -286,36 +286,22 @@ public class DialogueManager : MonoBehaviour
             label.ForceMeshUpdate();
             RectTransform labelRect = label.rectTransform;
 
-            Vector2 textSize = label.GetPreferredValues(label.text, Mathf.Infinity, Mathf.Infinity);
-            if (textSize.x <= 0f || textSize.y <= 0f)
-                textSize = labelRect.rect.size;
-
             labelRect.anchorMin = new Vector2(0.5f, 0.5f);
             labelRect.anchorMax = new Vector2(0.5f, 0.5f);
             labelRect.pivot = new Vector2(0.5f, 0.5f);
             labelRect.anchoredPosition = Vector2.zero;
-            labelRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, textSize.x);
-            labelRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textSize.y);
 
-            float scaledTextWidth = textSize.x * Mathf.Abs(labelRect.localScale.x);
             int lineCount = Mathf.Max(1, label.textInfo != null ? label.textInfo.lineCount : 1);
-
-            Vector2 targetSize = new Vector2(
-                Mathf.Max(choiceButtonMinSize.x, scaledTextWidth + choiceButtonPadding.x + choiceButtonExtraWidth),
-                Mathf.Max(choiceButtonMinSize.y, choiceButtonLineHeight * lineCount)
-            );
+            float targetHeight = Mathf.Max(choiceButtonMinSize.y, choiceButtonLineHeight * lineCount);
 
             RectTransform buttonRect = button.GetComponent<RectTransform>();
-            buttonRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetSize.x);
-            buttonRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, targetSize.y);
+            buttonRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, targetHeight);
 
             LayoutElement layoutElement = button.GetComponent<LayoutElement>();
             if (layoutElement == null)
                 layoutElement = button.gameObject.AddComponent<LayoutElement>();
-            layoutElement.minWidth = targetSize.x;
-            layoutElement.preferredWidth = targetSize.x;
-            layoutElement.minHeight = targetSize.y;
-            layoutElement.preferredHeight = targetSize.y;
+            layoutElement.minHeight = targetHeight;
+            layoutElement.preferredHeight = targetHeight;
 
             LayoutRebuilder.ForceRebuildLayoutImmediate(buttonRect);
             labelRect.anchoredPosition = Vector2.zero;

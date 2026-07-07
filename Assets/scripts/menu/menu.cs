@@ -14,8 +14,18 @@ public class Menu : MonoBehaviour
     [Header("视频过渡")]
     public VideoPlayer videoPlayer;
     public float videoDelay = 0.2f;
+    [Tooltip("视频结尾前多少秒激活游戏场景，用来避开片尾黑帧和加载黑屏")]
+    public float sceneActivationLeadTime = 0.12f;
+    [Header("黑屏渐变")]
+    public bool directVideoTransition = true;
+    public float fadeToVideoDuration = 0.45f;
+    public float fadeFromVideoDuration = 0.45f;
+    public float fadeToGameDuration = 0.45f;
+    public float fadeFromGameDuration = 0.55f;
 
     private RawImage videoRawImage;
+    private Image transitionOverlay;
+    private GameObject videoCanvas;
     private GameObject videoPanel;
     private RenderTexture videoRenderTexture;
     private bool isStarting;
@@ -46,13 +56,15 @@ public class Menu : MonoBehaviour
     private IEnumerator PlayIntroAndLoadScene()
     {
         isStarting = true;
+        if (!directVideoTransition)
+            DontDestroyOnLoad(gameObject);
+
         PrepareVideoUI();
+        HideVideoPanel();
+        SetTransitionAlpha(0f);
 
         if (videoPlayer != null)
         {
-            if (videoPanel != null)
-                videoPanel.SetActive(true);
-
             videoPlayer.Stop();
             videoPlayer.time = 0f;
             videoPlayer.Prepare();
@@ -68,25 +80,51 @@ public class Menu : MonoBehaviour
                 Debug.LogWarning("[Menu] Video prepare timed out, trying to play anyway.");
 
             bool reachedEnd = false;
+            bool firstFrameReady = false;
             VideoPlayer.EventHandler onLoopPointReached = _ => reachedEnd = true;
+            VideoPlayer.FrameReadyEventHandler onFrameReady = (_, __) => firstFrameReady = true;
             videoPlayer.loopPointReached += onLoopPointReached;
+            videoPlayer.sendFrameReadyEvents = true;
+            videoPlayer.frameReady += onFrameReady;
 
             videoPlayer.Play();
 
             float startElapsed = 0f;
-            while (!videoPlayer.isPlaying && videoPlayer.frame <= 0 && startElapsed < StartTimeout)
+            while ((!videoPlayer.isPlaying || (!firstFrameReady && videoPlayer.frame <= 0)) && startElapsed < StartTimeout)
             {
                 startElapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
 
-            if (!videoPlayer.isPlaying && videoPlayer.frame <= 0)
+            videoPlayer.frameReady -= onFrameReady;
+            videoPlayer.sendFrameReadyEvents = false;
+
+            if (!videoPlayer.isPlaying)
             {
                 Debug.LogWarning("[Menu] Video did not start, skipping intro video.");
                 videoPlayer.loopPointReached -= onLoopPointReached;
-                SceneManager.LoadScene(GameStartScene);
+                if (directVideoTransition)
+                    SceneManager.LoadScene(GameStartScene);
+                else
+                    yield return StartCoroutine(FadeToGameWithoutVideo());
                 yield break;
             }
+
+            if (directVideoTransition)
+            {
+                SetTransitionAlpha(0f);
+                ShowVideoPanel();
+            }
+            else
+            {
+                videoPlayer.Pause();
+                yield return StartCoroutine(FadeTransition(1f, fadeToVideoDuration));
+                ShowVideoPanel();
+                videoPlayer.Play();
+                yield return StartCoroutine(FadeTransition(0f, fadeFromVideoDuration));
+            }
+
+            AsyncOperation preloadOperation = BeginPreloadGameScene();
 
             yield return new WaitForSecondsRealtime(videoDelay);
 
@@ -97,19 +135,37 @@ public class Menu : MonoBehaviour
 
             while (!reachedEnd && playbackElapsed < maxPlaybackSeconds)
             {
+                if (ShouldActivatePreloadedScene(preloadOperation))
+                    break;
+
                 playbackElapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
 
             videoPlayer.loopPointReached -= onLoopPointReached;
-            videoPlayer.Stop();
+            if (!directVideoTransition)
+                yield return StartCoroutine(FadeTransition(1f, fadeToGameDuration));
+
+            yield return StartCoroutine(ActivatePreloadedScene(preloadOperation));
+            if (directVideoTransition)
+                yield break;
+
+            HideVideoPanel();
+            yield return null;
+            if (!directVideoTransition)
+                yield return StartCoroutine(FadeTransition(0f, fadeFromGameDuration));
+
+            CleanupIntroObjects();
+            yield break;
         }
         else
         {
-            yield return new WaitForSecondsRealtime(videoDelay);
+            if (directVideoTransition)
+                SceneManager.LoadScene(GameStartScene);
+            else
+                yield return StartCoroutine(FadeToGameWithoutVideo());
+            yield break;
         }
-
-        SceneManager.LoadScene(GameStartScene);
     }
 
     private void PrepareVideoUI()
@@ -126,16 +182,17 @@ public class Menu : MonoBehaviour
 
         if (videoPanel == null)
         {
-            var canvas = FindObjectOfType<Canvas>();
-            if (canvas == null)
-            {
-                var canvasGo = new GameObject("VideoCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
-                canvas = canvasGo.GetComponent<Canvas>();
-                canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-            }
+            videoCanvas = new GameObject("IntroVideoCanvas", typeof(Canvas), typeof(CanvasScaler), typeof(GraphicRaycaster));
+            var canvas = videoCanvas.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+            canvas.overrideSorting = true;
+            canvas.sortingOrder = 2000;
+            if (!directVideoTransition)
+                DontDestroyOnLoad(videoCanvas);
 
             videoPanel = new GameObject("VideoPanel", typeof(RectTransform));
             videoPanel.transform.SetParent(canvas.transform, false);
+            videoPanel.SetActive(false);
 
             var panelRect = videoPanel.GetComponent<RectTransform>();
             panelRect.anchorMin = Vector2.zero;
@@ -186,11 +243,141 @@ public class Menu : MonoBehaviour
             videoPlayer.renderMode = VideoRenderMode.RenderTexture;
             videoPlayer.targetTexture = videoRenderTexture;
             videoPlayer.aspectRatio = VideoAspectRatio.FitInside;
+
+            var overlay = new GameObject("IntroTransitionOverlay", typeof(RectTransform));
+            overlay.transform.SetParent(videoCanvas.transform, false);
+            transitionOverlay = overlay.AddComponent<Image>();
+            transitionOverlay.color = new Color(0f, 0f, 0f, 0f);
+            transitionOverlay.raycastTarget = false;
+            var overlayRect = transitionOverlay.GetComponent<RectTransform>();
+            overlayRect.anchorMin = Vector2.zero;
+            overlayRect.anchorMax = Vector2.one;
+            overlayRect.offsetMin = Vector2.zero;
+            overlayRect.offsetMax = Vector2.zero;
+            overlay.transform.SetAsLastSibling();
         }
+
+        HideVideoPanel();
+    }
+
+    private void ShowVideoPanel()
+    {
+        if (videoPanel != null)
+            videoPanel.SetActive(true);
+    }
+
+    private void HideVideoPanel()
+    {
+        if (videoPanel != null)
+            videoPanel.SetActive(false);
+    }
+
+    private IEnumerator LoadGameSceneKeepingVideoVisible()
+    {
+        AsyncOperation op = SceneManager.LoadSceneAsync(GameStartScene);
+        if (op == null)
+        {
+            SceneManager.LoadScene(GameStartScene);
+            yield break;
+        }
+
+        while (!op.isDone)
+            yield return null;
+    }
+
+    private IEnumerator FadeToGameWithoutVideo()
+    {
+        yield return StartCoroutine(FadeTransition(1f, fadeToGameDuration));
+        yield return StartCoroutine(LoadGameSceneKeepingVideoVisible());
+        yield return null;
+        yield return StartCoroutine(FadeTransition(0f, fadeFromGameDuration));
+        CleanupIntroObjects();
+    }
+
+    private IEnumerator FadeTransition(float targetAlpha, float duration)
+    {
+        if (transitionOverlay == null) yield break;
+
+        transitionOverlay.transform.SetAsLastSibling();
+        transitionOverlay.gameObject.SetActive(true);
+
+        float startAlpha = transitionOverlay.color.a;
+        if (duration <= 0f)
+        {
+            SetTransitionAlpha(targetAlpha);
+            yield break;
+        }
+
+        float elapsed = 0f;
+        while (elapsed < duration)
+        {
+            elapsed += Time.unscaledDeltaTime;
+            float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            SetTransitionAlpha(Mathf.Lerp(startAlpha, targetAlpha, p));
+            yield return null;
+        }
+
+        SetTransitionAlpha(targetAlpha);
+    }
+
+    private void SetTransitionAlpha(float alpha)
+    {
+        if (transitionOverlay == null) return;
+        transitionOverlay.color = new Color(0f, 0f, 0f, Mathf.Clamp01(alpha));
+    }
+
+    private void CleanupIntroObjects()
+    {
+        if (videoPlayer != null)
+            videoPlayer.Stop();
+
+        if (videoCanvas != null)
+            Destroy(videoCanvas);
+
+        Destroy(gameObject);
+    }
+
+    private AsyncOperation BeginPreloadGameScene()
+    {
+        AsyncOperation op = SceneManager.LoadSceneAsync(GameStartScene);
+        if (op == null) return null;
+
+        op.allowSceneActivation = false;
+        return op;
+    }
+
+    private bool ShouldActivatePreloadedScene(AsyncOperation op)
+    {
+        if (op == null) return true;
+        if (op.progress < 0.9f) return false;
+        if (videoPlayer == null || videoPlayer.length <= 0) return false;
+
+        double remaining = videoPlayer.length - videoPlayer.time;
+        return remaining <= Mathf.Max(0f, sceneActivationLeadTime);
+    }
+
+    private IEnumerator ActivatePreloadedScene(AsyncOperation op)
+    {
+        if (op == null)
+        {
+            yield return StartCoroutine(LoadGameSceneKeepingVideoVisible());
+            yield break;
+        }
+
+        while (op.progress < 0.9f)
+            yield return null;
+
+        op.allowSceneActivation = true;
+
+        while (!op.isDone)
+            yield return null;
     }
 
     private void OnDestroy()
     {
+        if (videoPlayer != null)
+            videoPlayer.Stop();
+
         if (videoRenderTexture != null)
         {
             videoRenderTexture.Release();

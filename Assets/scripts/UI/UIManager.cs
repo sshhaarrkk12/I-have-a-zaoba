@@ -46,7 +46,19 @@ public class UIManager : MonoBehaviour
     public void ShowFade(bool fadeToBlack, float duration = 1f)
     {
         StopAllCoroutines();
+        if (duration <= 0f)
+        {
+            SetFadeAlpha(fadeToBlack ? 1f : 0f);
+            return;
+        }
+
         StartCoroutine(FadeRoutine(fadeToBlack ? 1f : 0f, duration));
+    }
+
+    public void HideFadeImmediate()
+    {
+        StopAllCoroutines();
+        SetFadeAlpha(0f);
     }
 
     IEnumerator FadeRoutine(float target, float duration)
@@ -57,10 +69,17 @@ public class UIManager : MonoBehaviour
         while (elapsed < duration)
         {
             elapsed += Time.deltaTime;
-            float a = Mathf.Lerp(start, target, elapsed / duration);
+            float p = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / duration));
+            float a = Mathf.Lerp(start, target, p);
             fadeOverlay.color = new Color(0, 0, 0, a);
             yield return null;
         }
-        fadeOverlay.color = new Color(0, 0, 0, target);
+        SetFadeAlpha(target);
+    }
+
+    void SetFadeAlpha(float alpha)
+    {
+        if (fadeOverlay == null) return;
+        fadeOverlay.color = new Color(0, 0, 0, alpha);
     }
 }

@@ -16,7 +16,7 @@ public class WechatManager : MonoBehaviour
     public Image chatTabIcon;
     public Image momentTabIcon;
     public Image profileTabIcon;
-    public Color activeTabColor = Color.green;
+    public Color activeTabColor = GamePalette.Good;
     public Color inactiveTabColor = Color.gray;
 
     [Header("联系人数据")]

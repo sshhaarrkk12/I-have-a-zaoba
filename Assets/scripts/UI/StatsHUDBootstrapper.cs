@@ -68,6 +68,7 @@ public class StatsHUDBootstrapper : MonoBehaviour
         foreach (var candidate in existingHuds)
         {
             if (candidate == null || candidate == hud) continue;
+            candidate.gameObject.SetActive(false);
             Destroy(candidate.gameObject);
         }
 

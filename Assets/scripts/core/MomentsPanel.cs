@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 using System.Collections.Generic;
@@ -10,14 +10,14 @@ using System.Collections.Generic;
 public class MomentsPanel : MonoBehaviour
 {
     [Header("列表容器")]
-    public Transform momentListRoot;    // Vertical Layout Group 容器
-    public GameObject momentItemPrefab; // 条目预制体（可空，会自动创建）
+    public Transform momentListRoot;
+    public GameObject momentItemPrefab;
 
     [Header("发布朋友圈按钮")]
-    public Button postBtn;              // 右上角相机图标按钮
-    public GameObject postChoicePanel; // 选择发什么朋友圈的面板
-    public Transform postChoiceRoot;   // 选项列表容器
-    public GameObject postChoiceItemPrefab; // 选项预制体
+    public Button postBtn;
+    public GameObject postChoicePanel;
+    public Transform postChoiceRoot;
+    public GameObject postChoiceItemPrefab;
 
     [Header("当前事件标签（由事件系统设置）")]
     public string currentEventTag = "";
@@ -41,13 +41,10 @@ public class MomentsPanel : MonoBehaviour
             postChoicePanel.SetActive(false);
     }
 
-    // ==================== 刷新朋友圈列表 ====================
-
     void RefreshUI()
     {
         if (momentListRoot == null || MomentsSystem.Instance == null) return;
 
-        // 清空旧条目
         foreach (Transform child in momentListRoot)
             Destroy(child.gameObject);
 
@@ -86,7 +83,6 @@ public class MomentsPanel : MonoBehaviour
             return;
         }
 
-        // 动态创建
         go = new GameObject("MomentItem");
         go.transform.SetParent(momentListRoot, false);
 
@@ -99,28 +95,20 @@ public class MomentsPanel : MonoBehaviour
         layout.childForceExpandWidth = true;
         layout.childForceExpandHeight = false;
 
-        // 顶部：头像+名字+时间
-        var header = CreateHeader(go.transform, entry);
+        CreateHeader(go.transform, entry);
 
-        // 内容文字
         var contentGo = new GameObject("Content");
         contentGo.transform.SetParent(go.transform, false);
         var contentTMP = contentGo.AddComponent<TextMeshProUGUI>();
-        contentTMP.text = entry.post.content;
+        contentTMP.text = entry.isPlayer ? "【我】" + entry.post.content : entry.post.content;
         contentTMP.fontSize = 16;
         contentTMP.color = Color.white;
         var contentRT = contentGo.GetComponent<RectTransform>();
         contentRT.sizeDelta = new Vector2(0, 50);
 
-        // 如果是玩家发的，显示标记
-        if (entry.isPlayer)
-            contentTMP.text = "【我】" + entry.post.content;
-
-        // 底部：点赞按钮
         if (entry.post.canLike && !entry.isPlayer)
             CreateLikeBtn(go.transform, entry);
 
-        // 分割线
         var divider = new GameObject("Divider");
         divider.transform.SetParent(go.transform, false);
         var divImg = divider.AddComponent<Image>();
@@ -140,7 +128,6 @@ public class MomentsPanel : MonoBehaviour
         var rt = go.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(0, 36);
 
-        // 头像
         var avatarGo = new GameObject("Avatar");
         avatarGo.transform.SetParent(go.transform, false);
         var avatarImg = avatarGo.AddComponent<Image>();
@@ -149,7 +136,6 @@ public class MomentsPanel : MonoBehaviour
         var avatarRT = avatarGo.GetComponent<RectTransform>();
         avatarRT.sizeDelta = new Vector2(36, 36);
 
-        // 名字+时间（竖排）
         var infoGo = new GameObject("Info");
         infoGo.transform.SetParent(go.transform, false);
         var infoLayout = infoGo.AddComponent<VerticalLayoutGroup>();
@@ -180,9 +166,7 @@ public class MomentsPanel : MonoBehaviour
         go.transform.SetParent(parent, false);
         var btn = go.AddComponent<Button>();
         var img = go.AddComponent<Image>();
-        img.color = entry.isLiked
-            ? new Color(0.9f, 0.3f, 0.3f, 0.3f)
-            : new Color(1f, 1f, 1f, 0.1f);
+        img.color = entry.isLiked ? GamePalette.BadTransparent : new Color(1f, 1f, 1f, 0.1f);
         var rt = go.GetComponent<RectTransform>();
         rt.sizeDelta = new Vector2(0, 30);
 
@@ -191,7 +175,7 @@ public class MomentsPanel : MonoBehaviour
         tmp.text = entry.isLiked ? "❤ 已点赞" : "♡ 点赞";
         tmp.fontSize = 14;
         tmp.alignment = TextAlignmentOptions.Center;
-        tmp.color = entry.isLiked ? new Color(0.9f, 0.3f, 0.3f) : Color.white;
+        tmp.color = entry.isLiked ? GamePalette.Bad : Color.white;
 
         var captured = entry;
         btn.onClick.AddListener(() =>
@@ -206,7 +190,6 @@ public class MomentsPanel : MonoBehaviour
 
     void SetupPrefabItem(GameObject go, MomentEntry entry)
     {
-        // 如果有预制体，找到对应组件赋值
         var tmps = go.GetComponentsInChildren<TextMeshProUGUI>();
         if (tmps.Length > 0) tmps[0].text = entry.isPlayer ? "我" : entry.post.authorName;
         if (tmps.Length > 1) tmps[1].text = entry.post.content;
@@ -220,19 +203,14 @@ public class MomentsPanel : MonoBehaviour
         }
     }
 
-    // ==================== 发朋友圈 ====================
-
     void OnPostBtnClick()
     {
         if (postChoicePanel == null) return;
 
-        // 获取当前事件对应的可发朋友圈
-        var options = MomentsSystem.Instance?.GetPlayerPostOptions(currentEventTag)
-                      ?? new List<MomentPost>();
+        var options = MomentsSystem.Instance?.GetPlayerPostOptions(currentEventTag) ?? new List<MomentPost>();
 
         if (options.Count == 0)
         {
-            // 没有可发的内容
             Debug.Log("[Moments] 当前没有可发的朋友圈");
             return;
         }
@@ -248,7 +226,6 @@ public class MomentsPanel : MonoBehaviour
         foreach (Transform child in postChoiceRoot)
             Destroy(child.gameObject);
 
-        // 取消按钮
         AddChoiceItem("不发了", null);
 
         foreach (var option in options)

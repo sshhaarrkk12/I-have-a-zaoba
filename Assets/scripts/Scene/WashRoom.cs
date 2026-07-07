@@ -47,6 +47,7 @@ public class WashroomManager : MonoBehaviour
     {
         if (hasChosen) return;
         hasChosen = true;
+        MorningRoutineState.MarkDone("Washing");
 
         SetActionButtonsInteractable(false);
 

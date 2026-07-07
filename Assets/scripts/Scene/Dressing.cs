@@ -56,6 +56,7 @@ public class DressingManager : MonoBehaviour
     {
         if (hasChosen) return; // 拦截连点
         hasChosen = true;
+        MorningRoutineState.MarkDone("Dressing");
 
         // 锁定所有交互按钮
         SetActionButtonsInteractable(false);

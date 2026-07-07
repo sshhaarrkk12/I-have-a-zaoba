@@ -78,7 +78,8 @@ public class GameManager : MonoBehaviour
         float wakeTime = SleepSystem.CalculateWakeUpTime(playerStats);
         playerStats.wakeUpTime = wakeTime;
         TimeManager.Instance?.ResetForNewDay(wakeTime);
-        playerStats.NewDayReset();
+        if (playerStats.currentDay > 1)
+            playerStats.NewDayReset();
 
         if (loadWakeUpScene)
             LoadScene(wakeUpScene);

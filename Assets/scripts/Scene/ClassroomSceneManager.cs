@@ -1,4 +1,4 @@
-using UnityEngine;
+﻿using UnityEngine;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
@@ -96,6 +96,10 @@ public class ClassroomSceneManager : MonoBehaviour
     private bool isPlayingPhone = false;
     private bool isSleeping = false;
     private bool useLocalTimeText = true;
+    private bool cachedTimeSettings = false;
+    private bool previousAutoAdvanceEnabled = false;
+    private bool previousIsPaused = true;
+    private float previousRealSecondsPerGameHour = 60f;
 
     // 时间事件注册表（小时阈值 + 处理函数）
     private struct HourEvent
@@ -125,6 +129,7 @@ public class ClassroomSceneManager : MonoBehaviour
 
     void Start()
     {
+        CacheTimeSettings();
         ResolveTimeTextVisibility();
         TimeManager.OnTimeChanged += OnTimeUpdate;
         TimeManager.OnNoon += OnNoon;
@@ -138,7 +143,7 @@ public class ClassroomSceneManager : MonoBehaviour
     {
         TimeManager.OnTimeChanged -= OnTimeUpdate;
         TimeManager.OnNoon -= OnNoon;
-        SetTimeNormal();
+        RestoreTimeSettings();
     }
 
     // ====================================================================
@@ -166,7 +171,7 @@ public class ClassroomSceneManager : MonoBehaviour
     void OnNoon()
     {
         StopAllCoroutines();
-        SetTimeNormal();
+        PauseClassTime();
         StartCoroutine(EndClass());
     }
 
@@ -179,6 +184,11 @@ public class ClassroomSceneManager : MonoBehaviour
 
     IEnumerator TimeDispatchLoop()
     {
+        if (TimeManager.Instance == null)
+            yield break;
+
+        SetTimeFast();
+
         // 等到进入上课时段
         yield return new WaitUntil(() => TimeManager.Instance.gameHour >= 8.0f);
         SetStatus("上课中...");
@@ -191,7 +201,7 @@ public class ClassroomSceneManager : MonoBehaviour
             // 对话期间暂停时间
             if (dialogueActive)
             {
-                SetTimeNormal();
+                PauseClassTime();
             }
             else
             {
@@ -541,8 +551,41 @@ public class ClassroomSceneManager : MonoBehaviour
     // 辅助：时间控制 & 状态栏
     // ====================================================================
 
-    void SetTimeFast() { if (TimeManager.Instance != null) TimeManager.Instance.realSecondsPerGameHour = fastSpeed; }
-    void SetTimeNormal() { if (TimeManager.Instance != null) TimeManager.Instance.realSecondsPerGameHour = normalSpeed; }
+    void CacheTimeSettings()
+    {
+        if (TimeManager.Instance == null) return;
+
+        previousAutoAdvanceEnabled = TimeManager.Instance.autoAdvanceEnabled;
+        previousIsPaused = TimeManager.Instance.isPaused;
+        previousRealSecondsPerGameHour = TimeManager.Instance.realSecondsPerGameHour;
+        cachedTimeSettings = true;
+    }
+
+    void RestoreTimeSettings()
+    {
+        if (TimeManager.Instance == null || !cachedTimeSettings) return;
+
+        TimeManager.Instance.autoAdvanceEnabled = previousAutoAdvanceEnabled;
+        TimeManager.Instance.isPaused = previousIsPaused;
+        TimeManager.Instance.realSecondsPerGameHour = previousRealSecondsPerGameHour;
+    }
+
+    void SetTimeFast()
+    {
+        if (TimeManager.Instance == null) return;
+
+        TimeManager.Instance.autoAdvanceEnabled = true;
+        TimeManager.Instance.isPaused = false;
+        TimeManager.Instance.realSecondsPerGameHour = fastSpeed;
+    }
+
+    void PauseClassTime()
+    {
+        if (TimeManager.Instance == null) return;
+
+        TimeManager.Instance.isPaused = true;
+        TimeManager.Instance.realSecondsPerGameHour = normalSpeed;
+    }
 
     void SetStatus(string msg)
     {

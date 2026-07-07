@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using System.Collections.Generic;
+using UnityEngine.SceneManagement;
 
 [System.Serializable]
 public class StatBar
@@ -42,6 +43,10 @@ public class StatsHUD : MonoBehaviour
     public bool lockToBottomLeft = true;
     public Vector2 bottomLeftOffset = Vector2.zero;
 
+    [Header("场景隐藏")]
+    public bool hideInStartAndIntroScenes = true;
+    public string[] hiddenSceneNames = { "Start", "StartChange" };
+
     [Header("其他 UI")]
     public TextMeshProUGUI dayText;
     public Transform floatRoot;
@@ -51,17 +56,24 @@ public class StatsHUD : MonoBehaviour
 
     [Header("刷新设置")]
     public float smoothSpeed = 8f;
+    public float statRefreshDelayAfterUi = 0.15f;
 
-    static readonly Color ColorGood = new Color(0.27f, 0.85f, 0.40f);
-    static readonly Color ColorMid = new Color(0.98f, 0.75f, 0.14f);
-    static readonly Color ColorBad = new Color(0.94f, 0.27f, 0.27f);
-    static readonly Color ColorHealth = new Color(0.55f, 0.36f, 0.96f);
-    static readonly Color ColorAcademic = new Color(0.20f, 0.60f, 0.98f);
-    static readonly Color ColorSocial = new Color(1.00f, 0.60f, 0.40f);
+    static readonly Color ColorGood = GamePalette.Good;
+    static readonly Color ColorMid = GamePalette.Mid;
+    static readonly Color ColorBad = GamePalette.Bad;
+    static readonly Color ColorHealth = GamePalette.Health;
+    static readonly Color ColorAcademic = GamePalette.Academic;
+    static readonly Color ColorSocial = GamePalette.Social;
 
     float prevMood, prevStamina, prevStress, prevFatigue, prevHealth, prevAcademic, prevSocial;
     int lastCachedDay = -1;
     RectTransform screenCanvasRect;
+    Canvas cachedCanvas;
+    CanvasScaler cachedScaler;
+    GraphicRaycaster cachedRaycaster;
+    float nextBlackScreenScanTime;
+    bool cachedBlackScreenActive;
+    float statRefreshBlockedUntil;
 
     void Awake()
     {
@@ -83,9 +95,18 @@ public class StatsHUD : MonoBehaviour
         EnsureVisibilityGroup();
         EnsureScreenSpaceCanvas();
         EnsureTopLayer();
-        RefreshVisibility();
+        bool isHidden = RefreshVisibility();
 
         if (PlayerStats.Instance == null) return;
+        if (isHidden)
+        {
+            statRefreshBlockedUntil = Time.unscaledTime + statRefreshDelayAfterUi;
+            return;
+        }
+
+        if (Time.unscaledTime < statRefreshBlockedUntil)
+            return;
+
         var p = PlayerStats.Instance;
 
         mood.displayValue = p.mood;
@@ -110,8 +131,6 @@ public class StatsHUD : MonoBehaviour
 
     void Update()
     {
-        EnsureScreenSpaceCanvas();
-        EnsureTopLayer();
         RefreshVisibility();
 
         if (PlayerStats.Instance == null) return;
@@ -176,18 +195,19 @@ public class StatsHUD : MonoBehaviour
     {
         if (!keepOnTop) return;
 
-        transform.SetAsLastSibling();
+        if (transform.parent != null && transform.GetSiblingIndex() != transform.parent.childCount - 1)
+            transform.SetAsLastSibling();
 
         if (!useOwnCanvasOrder) return;
 
-        Canvas canvas = GetComponentInParent<Canvas>();
+        Canvas canvas = cachedCanvas != null ? cachedCanvas : GetComponentInParent<Canvas>();
         if (canvas == null)
         {
             EnsureScreenSpaceCanvas();
-            canvas = GetComponentInParent<Canvas>();
+            canvas = cachedCanvas != null ? cachedCanvas : GetComponentInParent<Canvas>();
         }
 
-        if (canvas != null)
+        if (canvas != null && (!canvas.overrideSorting || canvas.sortingOrder != sortingOrder))
         {
             canvas.overrideSorting = true;
             canvas.sortingOrder = sortingOrder;
@@ -214,27 +234,34 @@ public class StatsHUD : MonoBehaviour
         }
 
         GameObject canvasObject = screenCanvasRect.gameObject;
-        Canvas canvas = canvasObject.GetComponent<Canvas>();
+        Canvas canvas = cachedCanvas != null ? cachedCanvas : canvasObject.GetComponent<Canvas>();
         if (canvas == null)
             canvas = canvasObject.AddComponent<Canvas>();
+        cachedCanvas = canvas;
 
-        canvas.enabled = true;
-        canvas.renderMode = RenderMode.ScreenSpaceOverlay;
-        canvas.worldCamera = null;
-        canvas.overrideSorting = true;
-        canvas.sortingOrder = sortingOrder;
+        if (!canvas.enabled) canvas.enabled = true;
+        if (canvas.renderMode != RenderMode.ScreenSpaceOverlay) canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        if (canvas.worldCamera != null) canvas.worldCamera = null;
+        if (!canvas.overrideSorting) canvas.overrideSorting = true;
+        if (canvas.sortingOrder != sortingOrder) canvas.sortingOrder = sortingOrder;
 
-        CanvasScaler scaler = canvasObject.GetComponent<CanvasScaler>();
+        CanvasScaler scaler = cachedScaler != null ? cachedScaler : canvasObject.GetComponent<CanvasScaler>();
         if (scaler == null)
             scaler = canvasObject.AddComponent<CanvasScaler>();
+        cachedScaler = scaler;
 
-        scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-        scaler.referenceResolution = new Vector2(1920f, 1080f);
-        scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
-        scaler.matchWidthOrHeight = 0.5f;
+        if (scaler.uiScaleMode != CanvasScaler.ScaleMode.ScaleWithScreenSize)
+            scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
+        if (scaler.referenceResolution != new Vector2(1920f, 1080f))
+            scaler.referenceResolution = new Vector2(1920f, 1080f);
+        if (scaler.screenMatchMode != CanvasScaler.ScreenMatchMode.MatchWidthOrHeight)
+            scaler.screenMatchMode = CanvasScaler.ScreenMatchMode.MatchWidthOrHeight;
+        if (!Mathf.Approximately(scaler.matchWidthOrHeight, 0.5f))
+            scaler.matchWidthOrHeight = 0.5f;
 
-        if (canvasObject.GetComponent<GraphicRaycaster>() == null)
-            canvasObject.AddComponent<GraphicRaycaster>();
+        cachedRaycaster = cachedRaycaster != null ? cachedRaycaster : canvasObject.GetComponent<GraphicRaycaster>();
+        if (cachedRaycaster == null)
+            cachedRaycaster = canvasObject.AddComponent<GraphicRaycaster>();
 
         RemoveLocalCanvasComponents();
 
@@ -273,7 +300,7 @@ public class StatsHUD : MonoBehaviour
             SetLayerRecursively(root.transform.GetChild(i).gameObject, layer);
     }
 
-    void RefreshVisibility()
+    bool RefreshVisibility()
     {
         if (visibilityGroup == null)
             EnsureVisibilityGroup();
@@ -283,11 +310,32 @@ public class StatsHUD : MonoBehaviour
         bool shouldHideForBlackScreen = hideDuringBlackScreen
             && IsBlackScreenActive();
 
-        bool shouldHide = shouldHideForDialogue || shouldHideForBlackScreen;
+        bool shouldHideForScene = IsHiddenSceneActive();
+
+        bool shouldHide = shouldHideForScene || shouldHideForDialogue || shouldHideForBlackScreen;
 
         visibilityGroup.alpha = shouldHide ? 0f : 1f;
         visibilityGroup.interactable = !shouldHide;
         visibilityGroup.blocksRaycasts = !shouldHide;
+        return shouldHide;
+    }
+
+    bool IsHiddenSceneActive()
+    {
+        if (!hideInStartAndIntroScenes) return false;
+
+        string sceneName = SceneManager.GetActiveScene().name;
+        if (string.IsNullOrEmpty(sceneName) || hiddenSceneNames == null) return false;
+
+        for (int i = 0; i < hiddenSceneNames.Length; i++)
+        {
+            string hiddenScene = hiddenSceneNames[i];
+            if (string.IsNullOrEmpty(hiddenScene)) continue;
+            if (string.Equals(sceneName, hiddenScene, System.StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     bool IsDialogueOverlayActive()
@@ -311,6 +359,12 @@ public class StatsHUD : MonoBehaviour
         if (UIManager.Instance != null && UIManager.Instance.IsFadeVisible)
             return true;
 
+        if (Time.unscaledTime < nextBlackScreenScanTime)
+            return cachedBlackScreenActive;
+
+        nextBlackScreenScanTime = Time.unscaledTime + 0.1f;
+        cachedBlackScreenActive = false;
+
         Image[] images = FindObjectsOfType<Image>(true);
         foreach (var image in images)
         {
@@ -321,10 +375,13 @@ public class StatsHUD : MonoBehaviour
             bool likelyMask = n.Contains("mask") || n.Contains("black") || n.Contains("fade") || n.Contains("overlay");
             bool darkEnough = image.color.a > 0.05f && image.color.r < 0.08f && image.color.g < 0.08f && image.color.b < 0.08f;
             if (likelyMask && darkEnough)
+            {
+                cachedBlackScreenActive = true;
                 return true;
+            }
         }
 
-        return false;
+        return cachedBlackScreenActive;
     }
 
     List<Transform> GetDirectBarChildren(Transform root)
@@ -603,4 +660,17 @@ public class StatsHUD : MonoBehaviour
         lastCachedDay = PlayerStats.Instance.currentDay;
         dayText.text = $"Day {lastCachedDay} / {PlayerStats.MAX_DAYS}";
     }
+}
+
+public static class GamePalette
+{
+    public static readonly Color Bad = new Color32(0xF2, 0x8E, 0x69, 0xFF);
+    public static readonly Color Mid = new Color32(0xFE, 0xC8, 0x5A, 0xFF);
+    public static readonly Color Good = new Color32(0x8D, 0xD3, 0xBD, 0xFF);
+
+    public static readonly Color Health = new Color32(0xD3, 0x8D, 0xA9, 0xFF);
+    public static readonly Color Academic = new Color32(0x8D, 0xC2, 0xD3, 0xFF);
+    public static readonly Color Social = new Color32(0xFE, 0xA9, 0x5A, 0xFF);
+
+    public static readonly Color BadTransparent = new Color32(0xF2, 0x8E, 0x69, 0x4D);
 }

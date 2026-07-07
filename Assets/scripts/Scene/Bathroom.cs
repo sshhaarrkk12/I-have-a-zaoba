@@ -32,6 +32,7 @@ public class ToiletInteraction : MonoBehaviour
     {
         if (hasInteracted) return;
         hasInteracted = true;
+        MorningRoutineState.MarkDone("Bathroom");
 
         // 锁定按钮，防止重复触发
         if (toiletButton != null) toiletButton.interactable = false;

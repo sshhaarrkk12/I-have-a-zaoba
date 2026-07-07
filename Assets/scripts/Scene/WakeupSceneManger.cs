@@ -34,6 +34,8 @@ public class WakeUpSceneManager : MonoBehaviour
     [Header("第一天再睡分支")]
     public float sleepMoreDurationHours = 0.5f;
     public float sleepMoreLateExtraHours = 0.5f;
+    public float sleepMoreFadeDuration = 0.45f;
+    public float sleepMoreBlackHoldDuration = 0.8f;
 
     int currentClicks = 0;
     float timeoutTimer = 0f;
@@ -43,8 +45,8 @@ public class WakeUpSceneManager : MonoBehaviour
 
     void Start()
     {
-        if (screenOverlay != null)
-            screenOverlay.raycastTarget = false;
+        SetOverlayAlpha(0f);
+        UIManager.Instance?.HideFadeImmediate();
 
         TimeManager.OnTimeChanged += OnTimeUpdate;
         TimeManager.OnAlarm += OnAlarmRing;
@@ -201,6 +203,7 @@ public class WakeUpSceneManager : MonoBehaviour
         {
             waitingForInput = false;
             if (wakeUpButton != null) wakeUpButton.interactable = false;
+            HideGroggyUI();
             StartCoroutine(PlayWakeUpDialogue());
             return;
         }
@@ -213,6 +216,7 @@ public class WakeUpSceneManager : MonoBehaviour
         {
             waitingForInput = false;
             if (wakeUpButton != null) wakeUpButton.interactable = false;
+            HideGroggyUI();
             StartCoroutine(PlayWakeUpDialogue());
         }
     }
@@ -240,6 +244,7 @@ public class WakeUpSceneManager : MonoBehaviour
     {
         if (this == null) yield break;
         if (wakeUpButton != null) wakeUpButton.gameObject.SetActive(false);
+        HideGroggyUI();
         HideStatusText();
 
         if (PlayerStats.Instance.currentDay == 1)
@@ -303,7 +308,7 @@ public class WakeUpSceneManager : MonoBehaviour
 
     IEnumerator EventWakeShort(float wakeHour)
     {
-        SetOverlayAlpha(1f); yield return new WaitForSeconds(2f); SetOverlayAlpha(0f);
+        yield return StartCoroutine(PlaySleepMoreBlackTransition());
         MoveTimeTo(wakeHour);
         ChangeFatigueSafely(-8f);
         bool done = false;
@@ -320,7 +325,7 @@ public class WakeUpSceneManager : MonoBehaviour
 
     IEnumerator EventRoommateWake(float wakeHour)
     {
-        SetOverlayAlpha(1f); yield return new WaitForSeconds(2f); SetOverlayAlpha(0f);
+        yield return StartCoroutine(PlaySleepMoreBlackTransition());
         MoveTimeTo(wakeHour);
         ChangeFatigueSafely(-5f);
         bool d1 = false;
@@ -342,9 +347,7 @@ public class WakeUpSceneManager : MonoBehaviour
 
     IEnumerator EventWakeLate(float wakeHour)
     {
-        SetOverlayAlpha(1f);
-        yield return new WaitForSeconds(0.5f);
-        SetOverlayAlpha(0f);
+        yield return StartCoroutine(PlaySleepMoreBlackTransition());
 
         MoveTimeTo(wakeHour);
 
@@ -509,6 +512,21 @@ public class WakeUpSceneManager : MonoBehaviour
         statusText.gameObject.SetActive(false);
     }
 
+    void HideGroggyUI()
+    {
+        if (groggProgressBar != null)
+        {
+            groggProgressBar.value = 0f;
+            groggProgressBar.gameObject.SetActive(false);
+        }
+
+        if (clickCountText != null)
+        {
+            clickCountText.text = string.Empty;
+            clickCountText.gameObject.SetActive(false);
+        }
+    }
+
     void SetButtonText(string txt)
     {
         if (wakeUpButton == null) return;
@@ -522,6 +540,38 @@ public class WakeUpSceneManager : MonoBehaviour
         var c = screenOverlay.color;
         screenOverlay.color = new Color(c.r, c.g, c.b, alpha);
         screenOverlay.raycastTarget = alpha > 0.5f;
+    }
+
+    IEnumerator PlaySleepMoreBlackTransition()
+    {
+        yield return StartCoroutine(FadeOverlay(1f, sleepMoreFadeDuration));
+        yield return new WaitForSeconds(sleepMoreBlackHoldDuration);
+        yield return StartCoroutine(FadeOverlay(0f, sleepMoreFadeDuration));
+    }
+
+    IEnumerator FadeOverlay(float targetAlpha, float duration)
+    {
+        if (screenOverlay == null)
+            yield break;
+
+        float startAlpha = screenOverlay.color.a;
+        if (duration <= 0f)
+        {
+            SetOverlayAlpha(targetAlpha);
+            yield break;
+        }
+
+        float t = 0f;
+        while (t < duration)
+        {
+            t += Time.deltaTime;
+            float p = Mathf.Clamp01(t / duration);
+            float eased = Mathf.SmoothStep(0f, 1f, p);
+            SetOverlayAlpha(Mathf.Lerp(startAlpha, targetAlpha, eased));
+            yield return null;
+        }
+
+        SetOverlayAlpha(targetAlpha);
     }
 
     void MoveTimeTo(float targetHour)
