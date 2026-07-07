@@ -9,19 +9,20 @@ public class GameManager : MonoBehaviour
     public static GameManager Instance { get; private set; }
     public GamePhase currentPhase { get; private set; }
 
-    [Header("³¡¾°Ãû³Æ - ±ØÐëºÍ Build Settings ÍêÈ«Ò»ÖÂ")]
+    [Header("ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ - ï¿½ï¿½ï¿½ï¿½ï¿½ Build Settings ï¿½ï¿½È«Ò»ï¿½ï¿½")]
     public string wakeUpScene = "Wakeup";
     public string dormHubScene = "DormHub";
     public string washingScene = "Washing";
     public string dressingScene = "Dressing";
     public string packingScene = "Packing";
+    public string bathroomScene = "Bathroom";
     public string goOutScene = "GoOut";
     public string corridorScene = "Corridor";
     public string canteenScene = "Canteen";
     public string classroomScene = "Classroom";
     public string phoneUIScene = "PhoneUI";
 
-    [Header("°Ñ PlayerStats SO ÍÏ½øÀ´")]
+    [Header("ï¿½ï¿½ PlayerStats SO ï¿½Ï½ï¿½ï¿½ï¿½")]
     public PlayerStats playerStats;
 
     public DailySchedule tomorrowSchedule = new DailySchedule();
@@ -29,18 +30,18 @@ public class GameManager : MonoBehaviour
 
     void Awake()
     {
-        Debug.Log($"[GM] Awake, parent={transform.parent?.name ?? "null(¸ù¼¶)"}");
+        Debug.Log($"[GM] Awake, parent={transform.parent?.name ?? "null(ï¿½ï¿½ï¿½ï¿½)"}");
         if (Instance != null) { Destroy(gameObject); return; }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        Debug.Log("[GM] DontDestroyOnLoad ÒÑÉèÖÃ");
+        Debug.Log("[GM] DontDestroyOnLoad ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
     }
 
     void Start()
     {
         if (playerStats == null)
             playerStats = Resources.Load<PlayerStats>("PlayerStats");
-        if (playerStats == null) { Debug.LogError("[GM] PlayerStatsÎ´ÕÒµ½"); return; }
+        if (playerStats == null) { Debug.LogError("[GM] PlayerStatsÎ´ï¿½Òµï¿½"); return; }
 
         ResetPlayerStats();
         StartDay(SceneManager.GetActiveScene().name != wakeUpScene);
@@ -60,10 +61,10 @@ public class GameManager : MonoBehaviour
         playerStats.alarmSet = true;
         playerStats.alarmTime = 7.5f;
         playerStats.consecutiveHighFatigueDays = 0;
-        Debug.Log("[GM] PlayerStats ÒÑÖØÖÃ");
+        Debug.Log("[GM] PlayerStats ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½");
     }
 
-    // ==================== ÌìÑ­»· ====================
+    // ==================== ï¿½ï¿½Ñ­ï¿½ï¿½ ====================
 
     public void StartDay()
     {
@@ -90,13 +91,13 @@ public class GameManager : MonoBehaviour
     public void OnPlayerWokeUp()
     {
         ChangePhase(GamePhase.Morning);
-        // ×¢Òâ£ºÔç³¿Ëæ»úÊÂ¼þÓÉ WakeUpSceneManager ¸ºÔð´¥·¢
+        // ×¢ï¿½â£ºï¿½ç³¿ï¿½ï¿½ï¿½ï¿½Â¼ï¿½ï¿½ï¿½ WakeUpSceneManager ï¿½ï¿½ï¿½ð´¥·ï¿½
         LoadScene(dormHubScene);
     }
 
     public void TransitionToNoonPhase()
     {
-        Debug.Log("[GM] ¡ú ÖÐÎçÊÖ»ú");
+        Debug.Log("[GM] ï¿½ï¿½ ï¿½ï¿½ï¿½ï¿½ï¿½Ö»ï¿½");
         ChangePhase(GamePhase.Noon);
         playerStats.AddFatigue(20f);
         playerStats.RecalculateHealth();
@@ -112,14 +113,14 @@ public class GameManager : MonoBehaviour
 
     IEnumerator SleepTransition()
     {
-        // µ­ÈëºÚÄ»
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Ä»
         UIManager.Instance?.ShowFade(true, 1f);
         yield return new WaitForSeconds(1.5f);
 
-        // ½áËãÈÕ³Ì»î¶¯ÊôÐÔ
+        // ï¿½ï¿½ï¿½ï¿½ï¿½Õ³Ì»î¶¯ï¿½ï¿½ï¿½ï¿½
         ScheduleSystem.Instance?.SettleSchedule();
 
-        // ½áËãÌìÊý
+        // ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½
         playerStats.EndOfDayUpdate();
         if (EndingSystem.Instance != null && EndingSystem.Instance.HasTriggered)
             yield break;
@@ -130,13 +131,14 @@ public class GameManager : MonoBehaviour
         StartDay();
     }
 
-    // ==================== ³¡¾°Ìø×ª ====================
+    // ==================== ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½×ª ====================
 
     public void GoToDorm() => LoadScene(dormHubScene);
     public void GoToDormHub() => LoadScene(dormHubScene);
     public void GoToWashing() => LoadScene(washingScene);
     public void GoToDressing() => LoadScene(dressingScene);
     public void GoToPacking() => LoadScene(packingScene);
+    public void GoToBathroom() => LoadScene(bathroomScene);
     public void GoToGoOut() => LoadScene(goOutScene);
     public void GoToCorridor() => LoadScene(corridorScene);
     public void GoToPhoneUI() => LoadScene(phoneUIScene);
@@ -153,7 +155,7 @@ public class GameManager : MonoBehaviour
             LoadScene(canteenScene);
         else
         {
-            Debug.LogWarning("[GM] Canteen³¡¾°²»´æÔÚ£¬ÌøCorridor´úÌæ");
+            Debug.LogWarning("[GM] Canteenï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½ï¿½Ú£ï¿½ï¿½ï¿½Corridorï¿½ï¿½ï¿½ï¿½");
             LoadScene(corridorScene);
         }
     }
@@ -169,7 +171,7 @@ public class GameManager : MonoBehaviour
     {
         currentPhase = p;
         OnPhaseChanged?.Invoke(p);
-        Debug.Log($"[GM] Phase ¡ú {p}");
+        Debug.Log($"[GM] Phase ï¿½ï¿½ {p}");
     }
 
     
