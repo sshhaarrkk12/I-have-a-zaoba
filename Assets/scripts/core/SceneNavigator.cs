@@ -37,7 +37,10 @@ public class SceneNavigator : MonoBehaviour
         Bind(toBathroom, "Bathroom");
 
         if (timeText != null)
+        {
             TimeManager.OnTimeChanged += UpdateTime;
+            UpdateTime(TimeManager.Instance != null ? TimeManager.Instance.gameHour : 0f);
+        }
     }
 
     void OnDestroy()

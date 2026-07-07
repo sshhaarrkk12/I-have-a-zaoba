@@ -47,4 +47,7 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Resources/Scenes/Classroom.unity
     guid: 925bc75ec07a1d840bf73ab163f48e8b
+  - enabled: 1
+    path: Assets/Resources/Scenes/Ending.unity
+    guid: 2b8a5c3a0172e1245a14533083e13ecb
   m_configObjects: {}

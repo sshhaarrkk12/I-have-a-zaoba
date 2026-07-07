@@ -44,8 +44,13 @@ public class DialogueManager : MonoBehaviour
 
     [Header("选项区")]
     public GameObject choicesRoot;
-    public List<Button> choiceButtons;
-    public List<TextMeshProUGUI> choiceLabels;
+
+    [Header("Choice Auto Size")]
+    public bool autoResizeChoiceButtons = true;
+    public Vector2 choiceButtonPadding = new Vector2(320f, 90f);
+    public Vector2 choiceButtonMinSize = new Vector2(420f, 160f);
+    public float choiceButtonLineHeight = 160f;
+    public float choiceButtonExtraWidth = 200f;
     
 
     [Header("其他")]
@@ -63,11 +68,16 @@ public class DialogueManager : MonoBehaviour
     public WakeUpSceneManager wakeUpSceneManager;
 
     public bool IsDialogueActive => dialogueRoot != null && dialogueRoot.activeSelf;
+    public bool IsChoicesActive => choicesRoot != null && choicesRoot.activeSelf;
+    public bool IsStatPopupActive => statPopup != null && statPopup.activeSelf;
+    public bool IsOverlayActive => IsDialogueActive || IsChoicesActive || IsStatPopupActive;
 
     bool isTyping = false;
     bool skipRequested = false;
     Action onDialogueDone;
     Queue<DialogueLine> lineQueue = new Queue<DialogueLine>();
+    const string ChoicesRootName = "ChoicesRoot";
+    const string ButtonGroupName = "ButtonGroup";
 
     [Header("DialogueCanvas 根物体（顶层，DontDestroyOnLoad）")]
     public GameObject dialogueCanvas;
@@ -153,6 +163,7 @@ public class DialogueManager : MonoBehaviour
     public void Hide()
     {
         StopAllCoroutines();
+        CacheChoicesRoot();
         SetActive(dialogueRoot, false);
         SetActive(choicesRoot, false);
         SetActive(statPopup, false);
@@ -208,6 +219,7 @@ public class DialogueManager : MonoBehaviour
 
     IEnumerator PlayLineWithChoices(DialogueLine line, List<DialogueChoice> choices)
     {
+        CacheChoicesRoot();
         SetActive(dialogueRoot, true);
         SetActive(choicesRoot, false);
 
@@ -224,16 +236,18 @@ public class DialogueManager : MonoBehaviour
         yield return StartCoroutine(TypeText(line.text, line.typingSpeed));
         SetActive(choicesRoot, true);
 
-        for (int i = 0; i < choiceButtons.Count; i++)
+        List<Button> buttons = GetRuntimeChoiceButtons();
+        for (int i = 0; i < buttons.Count; i++)
         {
-            var btn = choiceButtons[i];
+            var btn = buttons[i];
             if (btn == null) continue;
             if (i < choices.Count)
             {
                 btn.gameObject.SetActive(true);
                 btn.onClick.RemoveAllListeners();
-                if (i < choiceLabels.Count && choiceLabels[i] != null)
-                    choiceLabels[i].text = choices[i].label;
+                TextMeshProUGUI label = GetChoiceLabel(i, btn);
+                if (label != null)
+                    label.text = choices[i].label;
                 var c = choices[i];
                 btn.onClick.AddListener(() =>
                 {
@@ -245,7 +259,213 @@ public class DialogueManager : MonoBehaviour
             else btn.gameObject.SetActive(false);
         }
 
-        
+        yield return StartCoroutine(RefreshChoiceLayoutNextFrame());
+    }
+
+    IEnumerator RefreshChoiceLayoutNextFrame()
+    {
+        if (!autoResizeChoiceButtons) yield break;
+
+        Canvas.ForceUpdateCanvases();
+        yield return null;
+        Canvas.ForceUpdateCanvases();
+
+        ResizeChoiceButtonsToText();
+        RebuildButtonGroupOnly();
+    }
+
+    void ResizeChoiceButtonsToText()
+    {
+        List<Button> buttons = GetRuntimeChoiceButtons();
+        for (int i = 0; i < buttons.Count; i++)
+        {
+            Button button = buttons[i];
+            TextMeshProUGUI label = GetChoiceLabel(i, button);
+            if (button == null || label == null || !button.gameObject.activeSelf) continue;
+
+            label.ForceMeshUpdate();
+            RectTransform labelRect = label.rectTransform;
+
+            Vector2 textSize = label.GetPreferredValues(label.text, Mathf.Infinity, Mathf.Infinity);
+            if (textSize.x <= 0f || textSize.y <= 0f)
+                textSize = labelRect.rect.size;
+
+            labelRect.anchorMin = new Vector2(0.5f, 0.5f);
+            labelRect.anchorMax = new Vector2(0.5f, 0.5f);
+            labelRect.pivot = new Vector2(0.5f, 0.5f);
+            labelRect.anchoredPosition = Vector2.zero;
+            labelRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, textSize.x);
+            labelRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, textSize.y);
+
+            float scaledTextWidth = textSize.x * Mathf.Abs(labelRect.localScale.x);
+            int lineCount = Mathf.Max(1, label.textInfo != null ? label.textInfo.lineCount : 1);
+
+            Vector2 targetSize = new Vector2(
+                Mathf.Max(choiceButtonMinSize.x, scaledTextWidth + choiceButtonPadding.x + choiceButtonExtraWidth),
+                Mathf.Max(choiceButtonMinSize.y, choiceButtonLineHeight * lineCount)
+            );
+
+            RectTransform buttonRect = button.GetComponent<RectTransform>();
+            buttonRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, targetSize.x);
+            buttonRect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, targetSize.y);
+
+            LayoutElement layoutElement = button.GetComponent<LayoutElement>();
+            if (layoutElement == null)
+                layoutElement = button.gameObject.AddComponent<LayoutElement>();
+            layoutElement.minWidth = targetSize.x;
+            layoutElement.preferredWidth = targetSize.x;
+            layoutElement.minHeight = targetSize.y;
+            layoutElement.preferredHeight = targetSize.y;
+
+            LayoutRebuilder.ForceRebuildLayoutImmediate(buttonRect);
+            labelRect.anchoredPosition = Vector2.zero;
+        }
+    }
+
+    void RebuildButtonGroupOnly()
+    {
+        RectTransform buttonGroup = null;
+        List<Button> buttons = GetRuntimeChoiceButtons();
+        foreach (var button in buttons)
+        {
+            if (button == null || button.transform.parent == null) continue;
+            buttonGroup = button.transform.parent as RectTransform;
+            if (buttonGroup != null) break;
+        }
+
+        if (buttonGroup != null)
+            LayoutRebuilder.ForceRebuildLayoutImmediate(buttonGroup);
+
+        Canvas.ForceUpdateCanvases();
+    }
+
+    List<Button> GetRuntimeChoiceButtons()
+    {
+        List<Button> buttons = new List<Button>();
+        HashSet<Button> used = new HashSet<Button>();
+
+        CacheChoicesRoot();
+        Transform buttonGroup = choicesRoot != null ? choicesRoot.transform.Find(ButtonGroupName) : null;
+        if (buttonGroup != null)
+        {
+            for (int i = 0; i < buttonGroup.childCount; i++)
+            {
+                if (buttons.Count >= 2) break;
+                AddChoiceButton(buttonGroup.GetChild(i).GetComponent<Button>(), buttons, used);
+            }
+        }
+
+        if (buttons.Count == 0 && buttonGroup != null)
+        {
+            Button[] childButtons = buttonGroup.GetComponentsInChildren<Button>(true);
+            foreach (var button in childButtons)
+                AddChoiceButton(button, buttons, used);
+        }
+
+        return buttons;
+    }
+
+    void AddChoiceButton(Button button, List<Button> buttons, HashSet<Button> used)
+    {
+        if (button == null || used.Contains(button)) return;
+        used.Add(button);
+        buttons.Add(button);
+    }
+
+    TextMeshProUGUI GetChoiceLabel(int index, Button button)
+    {
+        return button != null ? button.GetComponentInChildren<TextMeshProUGUI>(true) : null;
+    }
+
+    void CacheChoicesRoot()
+    {
+        if (choicesRoot != null) return;
+
+        Transform found = null;
+        if (dialogueRoot != null)
+            found = FindChildByName(dialogueRoot.transform, ChoicesRootName);
+        if (found == null && dialogueCanvas != null)
+            found = FindChildByName(dialogueCanvas.transform, ChoicesRootName);
+        if (found == null)
+            found = FindChildByName(transform, ChoicesRootName);
+
+        if (found != null)
+            choicesRoot = found.gameObject;
+    }
+
+    Transform FindChildByName(Transform root, string childName)
+    {
+        if (root == null) return null;
+        if (root.name == childName) return root;
+
+        for (int i = 0; i < root.childCount; i++)
+        {
+            Transform found = FindChildByName(root.GetChild(i), childName);
+            if (found != null) return found;
+        }
+
+        return null;
+    }
+
+    bool ResizeRectToPreferredLayout(RectTransform rect)
+    {
+        float preferredWidth = LayoutUtility.GetPreferredWidth(rect);
+        float preferredHeight = LayoutUtility.GetPreferredHeight(rect);
+        bool resized = false;
+
+        if (preferredWidth > 0f)
+        {
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, preferredWidth);
+            resized = true;
+        }
+        if (preferredHeight > 0f)
+        {
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, preferredHeight);
+            resized = true;
+        }
+
+        return resized;
+    }
+
+    void ResizeRectToActiveChildren(RectTransform rect)
+    {
+        if (rect == null) return;
+
+        bool hasBounds = false;
+        Vector2 min = Vector2.zero;
+        Vector2 max = Vector2.zero;
+        Vector3[] corners = new Vector3[4];
+
+        for (int i = 0; i < rect.childCount; i++)
+        {
+            RectTransform child = rect.GetChild(i) as RectTransform;
+            if (child == null || !child.gameObject.activeSelf) continue;
+
+            child.GetWorldCorners(corners);
+            for (int j = 0; j < corners.Length; j++)
+            {
+                Vector2 local = rect.InverseTransformPoint(corners[j]);
+                if (!hasBounds)
+                {
+                    min = local;
+                    max = local;
+                    hasBounds = true;
+                }
+                else
+                {
+                    min = Vector2.Min(min, local);
+                    max = Vector2.Max(max, local);
+                }
+            }
+        }
+
+        if (!hasBounds) return;
+
+        Vector2 size = max - min;
+        if (size.x > 0f)
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Horizontal, size.x);
+        if (size.y > 0f)
+            rect.SetSizeWithCurrentAnchors(RectTransform.Axis.Vertical, size.y);
     }
 
     IEnumerator TypeText(string text, float speed)

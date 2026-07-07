@@ -134,8 +134,9 @@ public class TimeManager : MonoBehaviour
 
     public string GetFormattedTime()
     {
-        int h = (int)gameHour;
-        int m = (int)((gameHour - h) * 60);
+        int totalMinutes = Mathf.RoundToInt(gameHour * 60f);
+        int h = totalMinutes / 60;
+        int m = totalMinutes % 60;
         return $"{h:D2}:{m:D2}";
     }
 
@@ -151,6 +152,7 @@ public class TimeManager : MonoBehaviour
         alarmFired = false;
         isPaused = true;
         previousSceneName = string.Empty;
+        OnTimeChanged?.Invoke(gameHour);
     }
 
     float GetTransitionHours(string fromScene, string toScene)
@@ -180,6 +182,12 @@ public class TimeManager : MonoBehaviour
             EventManager.Instance?.TriggerEventByTag("late_to_class");
             Debug.Log("迟到了！压力+15，心情-10");
         }
+    }
+
+    public void SetTime(float hour)
+    {
+        gameHour = Mathf.Max(0f, hour);
+        OnTimeChanged?.Invoke(gameHour);
     }
 }
 

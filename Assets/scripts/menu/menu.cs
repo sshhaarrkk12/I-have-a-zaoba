@@ -7,6 +7,9 @@ using UnityEngine.Video;
 public class Menu : MonoBehaviour
 {
     private const string GameStartScene = "Wakeup";
+    private const float PrepareTimeout = 5f;
+    private const float StartTimeout = 3f;
+    private const float PlaybackFallbackTimeout = 30f;
 
     [Header("视频过渡")]
     public VideoPlayer videoPlayer;
@@ -15,9 +18,23 @@ public class Menu : MonoBehaviour
     private RawImage videoRawImage;
     private GameObject videoPanel;
     private RenderTexture videoRenderTexture;
+    private bool isStarting;
+
+    private void Awake()
+    {
+        if (videoPlayer == null)
+            videoPlayer = GetComponent<VideoPlayer>();
+
+        if (videoPlayer != null)
+        {
+            videoPlayer.playOnAwake = false;
+            videoPlayer.Stop();
+        }
+    }
 
     public void Gamestart()
     {
+        if (isStarting) return;
         StartCoroutine(PlayIntroAndLoadScene());
     }
 
@@ -28,6 +45,7 @@ public class Menu : MonoBehaviour
 
     private IEnumerator PlayIntroAndLoadScene()
     {
+        isStarting = true;
         PrepareVideoUI();
 
         if (videoPlayer != null)
@@ -35,24 +53,60 @@ public class Menu : MonoBehaviour
             if (videoPanel != null)
                 videoPanel.SetActive(true);
 
-            if (videoRenderTexture != null)
-            {
-                videoPlayer.targetTexture = videoRenderTexture;
-            }
-
             videoPlayer.Stop();
             videoPlayer.time = 0f;
-            videoPlayer.Play();
-            yield return new WaitForSeconds(videoDelay);
+            videoPlayer.Prepare();
 
-            while (videoPlayer.isPlaying)
+            float prepareElapsed = 0f;
+            while (!videoPlayer.isPrepared && prepareElapsed < PrepareTimeout)
             {
+                prepareElapsed += Time.unscaledDeltaTime;
                 yield return null;
             }
+
+            if (!videoPlayer.isPrepared)
+                Debug.LogWarning("[Menu] Video prepare timed out, trying to play anyway.");
+
+            bool reachedEnd = false;
+            VideoPlayer.EventHandler onLoopPointReached = _ => reachedEnd = true;
+            videoPlayer.loopPointReached += onLoopPointReached;
+
+            videoPlayer.Play();
+
+            float startElapsed = 0f;
+            while (!videoPlayer.isPlaying && videoPlayer.frame <= 0 && startElapsed < StartTimeout)
+            {
+                startElapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            if (!videoPlayer.isPlaying && videoPlayer.frame <= 0)
+            {
+                Debug.LogWarning("[Menu] Video did not start, skipping intro video.");
+                videoPlayer.loopPointReached -= onLoopPointReached;
+                SceneManager.LoadScene(GameStartScene);
+                yield break;
+            }
+
+            yield return new WaitForSecondsRealtime(videoDelay);
+
+            float maxPlaybackSeconds = videoPlayer.length > 0
+                ? (float)videoPlayer.length + 2f
+                : PlaybackFallbackTimeout;
+            float playbackElapsed = 0f;
+
+            while (!reachedEnd && playbackElapsed < maxPlaybackSeconds)
+            {
+                playbackElapsed += Time.unscaledDeltaTime;
+                yield return null;
+            }
+
+            videoPlayer.loopPointReached -= onLoopPointReached;
+            videoPlayer.Stop();
         }
         else
         {
-            yield return new WaitForSeconds(videoDelay);
+            yield return new WaitForSecondsRealtime(videoDelay);
         }
 
         SceneManager.LoadScene(GameStartScene);
@@ -106,6 +160,10 @@ public class Menu : MonoBehaviour
             videoRawImage.texture = videoRenderTexture;
 
             videoPlayer.targetCamera = null;
+            videoPlayer.playOnAwake = false;
+            videoPlayer.waitForFirstFrame = true;
+            videoPlayer.isLooping = false;
+            videoPlayer.skipOnDrop = true;
             videoPlayer.renderMode = VideoRenderMode.RenderTexture;
             videoPlayer.targetTexture = videoRenderTexture;
             videoPlayer.aspectRatio = VideoAspectRatio.FitInside;
@@ -121,9 +179,22 @@ public class Menu : MonoBehaviour
 
             videoRawImage.texture = videoRenderTexture;
             videoPlayer.targetCamera = null;
+            videoPlayer.playOnAwake = false;
+            videoPlayer.waitForFirstFrame = true;
+            videoPlayer.isLooping = false;
+            videoPlayer.skipOnDrop = true;
             videoPlayer.renderMode = VideoRenderMode.RenderTexture;
             videoPlayer.targetTexture = videoRenderTexture;
             videoPlayer.aspectRatio = VideoAspectRatio.FitInside;
+        }
+    }
+
+    private void OnDestroy()
+    {
+        if (videoRenderTexture != null)
+        {
+            videoRenderTexture.Release();
+            Destroy(videoRenderTexture);
         }
     }
 }

@@ -54,7 +54,7 @@ public class PhoneUIManager : MonoBehaviour
     private void InitUIState()
     {
         if (dayText != null && PlayerStats.Instance != null)
-            dayText.text = $"Day {PlayerStats.Instance.currentDay} / 30";
+            dayText.text = $"Day {PlayerStats.Instance.currentDay} / {PlayerStats.MAX_DAYS}";
 
         if (alarmTimeSlider != null)
         {

@@ -8,15 +8,23 @@ public class AudioManager : MonoBehaviour
 
     [Header("Audio Sources")]
     [SerializeField] private AudioSource musicSource;
+    [SerializeField] private AudioSource transitionMusicSource;
     [SerializeField] private AudioSource sfxSource;
 
     [Header("Default Scene Audio")]
     [SerializeField] private bool playMusicOnStart = false;
     [SerializeField] private AudioClip startMusicClip;
 
+    [Header("Fade Settings")]
+    [SerializeField, Min(0f)] private float defaultMusicFadeTime = 0.75f;
+    [SerializeField, Min(0f)] private float defaultStopFadeTime = 0.5f;
+
     private float musicVolume = 1f;
     private float sfxVolume = 1f;
     private AudioClip currentMusicClip;
+    private Coroutine musicFadeRoutine;
+    private AudioSource activeMusicSource;
+    private AudioSource standbyMusicSource;
 
     private void Awake()
     {
@@ -48,7 +56,7 @@ public class AudioManager : MonoBehaviour
             var cfg = root.GetComponentInChildren<SceneAudioConfig>(true);
             if (cfg != null && cfg.playOnStart)
             {
-                ApplySceneMusic(cfg.musicClip, cfg.loop, cfg.musicVolume);
+                ApplySceneMusic(cfg.musicClip, cfg.loop, cfg.musicVolume, cfg.fadeTime);
                 return;
             }
         }
@@ -70,6 +78,19 @@ public class AudioManager : MonoBehaviour
             musicSource.playOnAwake = false;
         }
 
+        if (transitionMusicSource == null)
+        {
+            var go = new GameObject("TransitionMusicSource");
+            go.transform.SetParent(transform);
+            transitionMusicSource = go.AddComponent<AudioSource>();
+            transitionMusicSource.playOnAwake = false;
+        }
+
+        if (activeMusicSource == null)
+            activeMusicSource = musicSource;
+        if (standbyMusicSource == null || standbyMusicSource == activeMusicSource)
+            standbyMusicSource = activeMusicSource == musicSource ? transitionMusicSource : musicSource;
+
         if (sfxSource == null)
         {
             var go = new GameObject("SFXSource");
@@ -83,30 +104,45 @@ public class AudioManager : MonoBehaviour
     {
         if (clip == null) return false;
         if (musicSource == null) EnsureAudioSources();
-        if (musicSource.clip == clip && musicSource.isPlaying) return true;
+        EnsureAudioSources();
+
+        if (currentMusicClip == clip && musicFadeRoutine != null)
+            return true;
+
+        if (activeMusicSource.clip == clip && activeMusicSource.isPlaying)
+        {
+            activeMusicSource.loop = loop;
+            activeMusicSource.volume = musicVolume;
+            return true;
+        }
 
         currentMusicClip = clip;
+        float resolvedFadeTime = fadeTime > 0f ? fadeTime : (activeMusicSource.isPlaying ? defaultMusicFadeTime : 0f);
 
-        if (fadeTime > 0f && musicSource.isPlaying)
+        if (musicFadeRoutine != null)
         {
-            StartCoroutine(FadeOutIn(clip, loop, fadeTime));
+            StopCoroutine(musicFadeRoutine);
+            musicFadeRoutine = null;
+        }
+
+        if (resolvedFadeTime > 0f && activeMusicSource.isPlaying)
+        {
+            musicFadeRoutine = StartCoroutine(CrossFadeMusic(clip, loop, resolvedFadeTime));
         }
         else
         {
-            musicSource.clip = clip;
-            musicSource.loop = loop;
-            musicSource.volume = musicVolume;
-            musicSource.Play();
+            PlayMusicImmediately(activeMusicSource, clip, loop);
+            if (standbyMusicSource != null) standbyMusicSource.Stop();
         }
 
         return true;
     }
 
-    public bool ApplySceneMusic(AudioClip clip, bool loop = true, float volume = 1f)
+    public bool ApplySceneMusic(AudioClip clip, bool loop = true, float volume = 1f, float fadeTime = -1f)
     {
         if (clip == null)
         {
-            if (musicSource != null && musicSource.isPlaying)
+            if (activeMusicSource != null && activeMusicSource.isPlaying)
             {
                 SetMusicVolume(volume);
                 return true;
@@ -116,48 +152,99 @@ public class AudioManager : MonoBehaviour
         }
 
         if (musicSource == null) EnsureAudioSources();
-        if (musicSource.clip == clip && musicSource.isPlaying) return true;
-
-        SetMusicVolume(volume);
-        currentMusicClip = clip;
-        musicSource.clip = clip;
-        musicSource.loop = loop;
-        musicSource.volume = musicVolume;
-        musicSource.Play();
-        return true;
+        musicVolume = Mathf.Clamp01(volume);
+        return PlayMusic(clip, loop, fadeTime >= 0f ? fadeTime : defaultMusicFadeTime);
     }
 
-    private IEnumerator FadeOutIn(AudioClip newClip, bool loop, float time)
+    private void PlayMusicImmediately(AudioSource source, AudioClip clip, bool loop)
     {
-        float start = musicSource.volume;
+        source.clip = clip;
+        source.loop = loop;
+        source.volume = musicVolume;
+        source.Play();
+    }
+
+    private IEnumerator CrossFadeMusic(AudioClip newClip, bool loop, float time)
+    {
+        AudioSource from = activeMusicSource;
+        AudioSource to = standbyMusicSource;
+        if (to == null || to == from)
+        {
+            PlayMusicImmediately(from, newClip, loop);
+            musicFadeRoutine = null;
+            yield break;
+        }
+
+        to.Stop();
+        to.clip = newClip;
+        to.loop = loop;
+        to.volume = 0f;
+        to.Play();
+
+        float fromStartVolume = from.volume;
+        float targetVolume = musicVolume;
         float t = 0f;
         while (t < time)
         {
             t += Time.unscaledDeltaTime;
-            musicSource.volume = Mathf.Lerp(start, 0f, t / time);
+            float progress = Mathf.Clamp01(t / time);
+            from.volume = Mathf.Lerp(fromStartVolume, 0f, progress);
+            to.volume = Mathf.Lerp(0f, targetVolume, progress);
             yield return null;
         }
 
-        musicSource.Stop();
-        musicSource.clip = newClip;
-        musicSource.loop = loop;
-        musicSource.Play();
-
-        t = 0f;
-        while (t < time)
-        {
-            t += Time.unscaledDeltaTime;
-            musicSource.volume = Mathf.Lerp(0f, musicVolume, t / time);
-            yield return null;
-        }
-
-        musicSource.volume = musicVolume;
+        from.Stop();
+        from.volume = 0f;
+        to.volume = targetVolume;
+        activeMusicSource = to;
+        standbyMusicSource = from;
+        musicSource = activeMusicSource;
+        transitionMusicSource = standbyMusicSource;
+        musicFadeRoutine = null;
     }
 
     public void StopMusic()
     {
-        if (musicSource != null)
-            musicSource.Stop();
+        StopMusic(defaultStopFadeTime);
+    }
+
+    public void StopMusic(float fadeTime)
+    {
+        if (activeMusicSource == null) return;
+
+        if (musicFadeRoutine != null)
+        {
+            StopCoroutine(musicFadeRoutine);
+            musicFadeRoutine = null;
+        }
+
+        if (fadeTime > 0f && activeMusicSource.isPlaying)
+        {
+            musicFadeRoutine = StartCoroutine(FadeOutMusic(fadeTime));
+        }
+        else
+        {
+            activeMusicSource.Stop();
+            currentMusicClip = null;
+        }
+    }
+
+    private IEnumerator FadeOutMusic(float time)
+    {
+        AudioSource source = activeMusicSource;
+        float startVolume = source.volume;
+        float t = 0f;
+        while (t < time)
+        {
+            t += Time.unscaledDeltaTime;
+            source.volume = Mathf.Lerp(startVolume, 0f, Mathf.Clamp01(t / time));
+            yield return null;
+        }
+
+        source.Stop();
+        source.volume = musicVolume;
+        currentMusicClip = null;
+        musicFadeRoutine = null;
     }
 
     public bool PlaySFX(AudioClip clip, float volume = 1f)
@@ -171,7 +258,7 @@ public class AudioManager : MonoBehaviour
     public void SetMusicVolume(float v)
     {
         musicVolume = Mathf.Clamp01(v);
-        if (musicSource != null) musicSource.volume = musicVolume;
+        if (activeMusicSource != null) activeMusicSource.volume = musicVolume;
     }
 
     public void SetSFXVolume(float v)
@@ -182,5 +269,5 @@ public class AudioManager : MonoBehaviour
     public float GetMusicVolume() => musicVolume;
     public float GetSFXVolume() => sfxVolume;
 
-    public bool IsMusicPlaying() => musicSource != null && musicSource.isPlaying;
+    public bool IsMusicPlaying() => activeMusicSource != null && activeMusicSource.isPlaying;
 }

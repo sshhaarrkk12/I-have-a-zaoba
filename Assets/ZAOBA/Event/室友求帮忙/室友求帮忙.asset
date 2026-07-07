@@ -27,7 +27,7 @@ MonoBehaviour:
   conditionCompare: 1
   conditionValue: 40
   minDay: 1
-  maxDay: 30
+  maxDay: 7
   triggerScenes:
   - Classroom
   - GoOut

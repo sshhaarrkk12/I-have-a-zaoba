@@ -31,6 +31,10 @@ public class WakeUpSceneManager : MonoBehaviour
     [Tooltip("起床后疲劳回复：疲劳值 * 此系数")]
     public float fatigueRecoveryRate = 0.15f;
 
+    [Header("第一天再睡分支")]
+    public float sleepMoreDurationHours = 0.5f;
+    public float sleepMoreLateExtraHours = 0.5f;
+
     int currentClicks = 0;
     float timeoutTimer = 0f;
     bool isGroggy = false;
@@ -119,12 +123,13 @@ public class WakeUpSceneManager : MonoBehaviour
         yield return new WaitForSeconds(2f);
         SetOverlayAlpha(0f);
 
-        TimeManager.Instance.gameHour = wakeHour;
+        TimeManager.Instance.SetTime(wakeHour);
 
         if (wakeHour >= 12f)
         {
             SetStatus("……已经下午了。");
             yield return new WaitForSeconds(1.5f);
+            HideStatusText();
             PlayerStats.Instance.ChangeMood(-10f);
             bool pop = false;
             DialogueManager.Instance.ShowStatPopup("睡过头了！\n心情 -10\n今天的课全没了", () => pop = true);
@@ -235,6 +240,7 @@ public class WakeUpSceneManager : MonoBehaviour
     {
         if (this == null) yield break;
         if (wakeUpButton != null) wakeUpButton.gameObject.SetActive(false);
+        HideStatusText();
 
         if (PlayerStats.Instance.currentDay == 1)
             yield return StartCoroutine(PlayDay1Dialogue());
@@ -288,54 +294,59 @@ public class WakeUpSceneManager : MonoBehaviour
         yield return new WaitUntil(() => done || this == null);
         if (this == null) yield break;
 
+        float plannedWakeHour = GetCurrentHour() + sleepMoreDurationHours;
         int roll = Random.Range(0, 3);
-        if (roll == 0) StartCoroutine(EventWakeShort());
-        else if (roll == 1) StartCoroutine(EventRoommateWake());
-        else StartCoroutine(EventWakeLate());
+        if (roll == 0) StartCoroutine(EventWakeShort(plannedWakeHour));
+        else if (roll == 1) StartCoroutine(EventRoommateWake(plannedWakeHour));
+        else StartCoroutine(EventWakeLate(plannedWakeHour + sleepMoreLateExtraHours));
     }
 
-    IEnumerator EventWakeShort()
+    IEnumerator EventWakeShort(float wakeHour)
     {
         SetOverlayAlpha(1f); yield return new WaitForSeconds(2f); SetOverlayAlpha(0f);
+        MoveTimeTo(wakeHour);
+        ChangeFatigueSafely(-8f);
         bool done = false;
-        DialogueManager.Instance.Show("7:30……时间正好，也睡饱了，那就起床吧！", () => done = true);
+        DialogueManager.Instance.Show($"{GetCurrentTimeText()}……时间正好，也睡饱了，那就起床吧！", () => done = true);
         yield return new WaitUntil(() => done || this == null);
         if (this == null) yield break;
         PlayerStats.Instance.ChangeMood(2f);
-        PlayerStats.Instance.health = Mathf.Min(100, PlayerStats.Instance.health + 2f);
         bool pop = false;
-        DialogueManager.Instance.ShowStatPopup("心情 +2\n健康 +2", () => pop = true);
+        DialogueManager.Instance.ShowStatPopup("心情 +2\n疲劳 -8", () => pop = true);
         yield return new WaitUntil(() => pop || this == null);
         if (this == null) yield break;
         GoToDorm();
     }
 
-    IEnumerator EventRoommateWake()
+    IEnumerator EventRoommateWake(float wakeHour)
     {
         SetOverlayAlpha(1f); yield return new WaitForSeconds(2f); SetOverlayAlpha(0f);
+        MoveTimeTo(wakeHour);
+        ChangeFatigueSafely(-5f);
         bool d1 = false;
-        DialogueManager.Instance.Show("小A：快醒醒，30分了，该起床了！", () => d1 = true, "小A");
+        DialogueManager.Instance.Show($"小A：快醒醒，{GetCurrentTimeText()}了，该起床了！", () => d1 = true, "小A");
         yield return new WaitUntil(() => d1 || this == null);
         if (this == null) yield break;
         bool d2 = false;
-        DialogueManager.Instance.Show("唔…已经30分了吗？谢谢你小A", () => d2 = true);
+        DialogueManager.Instance.Show($"唔…已经{GetCurrentTimeText()}了吗？谢谢你小A", () => d2 = true);
         yield return new WaitUntil(() => d2 || this == null);
         if (this == null) yield break;
         PlayerStats.Instance.ChangeMood(1f);
+        PlayerStats.Instance.ChangeSocial(3f);
         bool pop = false;
-        DialogueManager.Instance.ShowStatPopup("心情 +1\n人际关系 +3", () => pop = true);
+        DialogueManager.Instance.ShowStatPopup("心情 +1\n人际关系 +3\n疲劳 -5", () => pop = true);
         yield return new WaitUntil(() => pop || this == null);
         if (this == null) yield break;
         GoToDorm();
     }
 
-    IEnumerator EventWakeLate()
+    IEnumerator EventWakeLate(float wakeHour)
     {
         SetOverlayAlpha(1f);
         yield return new WaitForSeconds(0.5f);
         SetOverlayAlpha(0f);
 
-        TimeManager.Instance.gameHour = 7.833f;
+        MoveTimeTo(wakeHour);
 
         bool d1 = false;
         DialogueManager.Instance.Show("感觉睡了好久，几点了？", () => d1 = true);
@@ -348,7 +359,7 @@ public class WakeUpSceneManager : MonoBehaviour
         if (this == null) yield break;
 
         PlayerStats.Instance.ChangeMood(-5f);
-        PlayerStats.Instance.social = Mathf.Clamp(PlayerStats.Instance.social - 5f, 0f, 100f);
+        PlayerStats.Instance.ChangeSocial(-5f);
         bool pop = false;
         DialogueManager.Instance.ShowStatPopup("心情 -5\n人际关系 -5", () => pop = true);
         yield return new WaitUntil(() => pop || this == null);
@@ -367,7 +378,7 @@ public class WakeUpSceneManager : MonoBehaviour
     IEnumerator SkipClass()
     {
         PlayerStats.Instance.ChangeMood(2f);
-        PlayerStats.Instance.academic = Mathf.Clamp(PlayerStats.Instance.academic - 5f, 0f, 100f);
+        PlayerStats.Instance.AddAcademic(-5f);
         bool pop = false;
         DialogueManager.Instance.ShowStatPopup("心情 +2\n学业 -5", () => pop = true);
         yield return new WaitUntil(() => pop || this == null);
@@ -403,8 +414,8 @@ public class WakeUpSceneManager : MonoBehaviour
         if (this == null) yield break;
 
         PlayerStats.Instance.ChangeMood(-10f);
-        PlayerStats.Instance.social = Mathf.Clamp(PlayerStats.Instance.social - 5f, 0f, 100f);
-        PlayerStats.Instance.academic = Mathf.Clamp(PlayerStats.Instance.academic - 5f, 0f, 100f);
+        PlayerStats.Instance.ChangeSocial(-5f);
+        PlayerStats.Instance.AddAcademic(-5f);
         bool pop = false;
         DialogueManager.Instance.ShowStatPopup("心情 -10\n人际关系 -5\n学业 -5", () => pop = true);
         yield return new WaitUntil(() => pop || this == null);
@@ -426,8 +437,8 @@ public class WakeUpSceneManager : MonoBehaviour
         if (this == null) yield break;
 
         PlayerStats.Instance.ChangeMood(5f);
-        PlayerStats.Instance.social = Mathf.Clamp(PlayerStats.Instance.social + 1f, 0f, 100f);
-        PlayerStats.Instance.academic = Mathf.Clamp(PlayerStats.Instance.academic + 5f, 0f, 100f);
+        PlayerStats.Instance.ChangeSocial(1f);
+        PlayerStats.Instance.AddAcademic(5f);
         bool pop = false;
         DialogueManager.Instance.ShowStatPopup("心情 +5\n人际关系 +1\n学业 +5", () => pop = true);
         yield return new WaitUntil(() => pop || this == null);
@@ -476,11 +487,27 @@ public class WakeUpSceneManager : MonoBehaviour
     void GoToDorm()
     {
         wakeUpSuccess = true;
+        HideStatusText();
         DialogueManager.Instance?.Hide();
         GameManager.Instance.OnPlayerWokeUp();
     }
 
-    void SetStatus(string msg) { if (statusText != null) statusText.text = msg; }
+    void SetStatus(string msg)
+    {
+        if (statusText == null) return;
+
+        if (!statusText.gameObject.activeSelf)
+            statusText.gameObject.SetActive(true);
+        statusText.text = msg;
+    }
+
+    void HideStatusText()
+    {
+        if (statusText == null) return;
+
+        statusText.text = string.Empty;
+        statusText.gameObject.SetActive(false);
+    }
 
     void SetButtonText(string txt)
     {
@@ -495,6 +522,31 @@ public class WakeUpSceneManager : MonoBehaviour
         var c = screenOverlay.color;
         screenOverlay.color = new Color(c.r, c.g, c.b, alpha);
         screenOverlay.raycastTarget = alpha > 0.5f;
+    }
+
+    void MoveTimeTo(float targetHour)
+    {
+        if (TimeManager.Instance == null) return;
+
+        TimeManager.Instance.SetTime(Mathf.Max(TimeManager.Instance.gameHour, targetHour));
+    }
+
+    float GetCurrentHour()
+    {
+        return TimeManager.Instance != null ? TimeManager.Instance.gameHour : 0f;
+    }
+
+    string GetCurrentTimeText()
+    {
+        return TimeManager.Instance != null ? TimeManager.Instance.GetFormattedTime() : "--:--";
+    }
+
+    void ChangeFatigueSafely(float delta)
+    {
+        if (PlayerStats.Instance == null) return;
+
+        PlayerStats.Instance.ChangeFatigue(delta);
+        PlayerStats.Instance.RecalculateHealth();
     }
 
     /*

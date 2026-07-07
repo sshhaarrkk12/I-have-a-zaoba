@@ -1,7 +1,6 @@
 ﻿using UnityEngine;
 using UnityEngine.UI;
 using System.Collections;
-using UnityEditor.UI;
 
 public class DressingManager : MonoBehaviour
 {
@@ -29,11 +28,12 @@ public class DressingManager : MonoBehaviour
     [SerializeField] private Button button1;
     [SerializeField] private Button button2;
     [SerializeField] private Button button3;
+    private Coroutine transitionRoutine;
 
     void Start()
     {
         //呱：开始先隐藏遮罩
-        mask.gameObject.SetActive(false);
+        if (mask != null) mask.gameObject.SetActive(false);
 
         SetButtonState(button1,false);
         SetButtonState(button2, false);
@@ -124,26 +124,39 @@ public class DressingManager : MonoBehaviour
 
     private void ShowSingleLineDialogue(string text)
     {
+        if (transitionRoutine != null) StopCoroutine(transitionRoutine);
+        transitionRoutine = StartCoroutine(PlayBlackTextSequence(text));
+    }
+
+    private IEnumerator PlayBlackTextSequence(string text)
+    {
+        if (dialogueBox != null) dialogueBox.SetActive(false);
+
+        yield return StartCoroutine(FadeMask(1f, duration));
+
         if (dialogueBox != null && dialogueText != null)
         {
             dialogueBox.SetActive(true);
+            EnsureDialogueAboveMask();
             dialogueText.text = text;
-            StartCoroutine(WaitForDismissDialogue());
         }
-    }
 
-    private IEnumerator WaitForDismissDialogue()
-    {
-        yield return new WaitForSeconds(0.3f);
-
-        // 等待玩家点击鼠标左键或触摸屏幕
-        while (!Input.GetMouseButtonDown(0))
+        float timer = 0f;
+        while (timer < lastingTime)
         {
+            timer += Time.deltaTime;
+            if (Input.GetMouseButtonDown(0) || Input.touchCount > 0) break;
             yield return null;
         }
 
-        if (dialogueBox != null) dialogueBox.SetActive(false);
+        ClearDialogue();
+        yield return StartCoroutine(FadeMask(0f, duration));
 
+        SetButtonState(button1, true);
+        SetButtonState(button2, true);
+        SetButtonState(button3, true);
+
+        transitionRoutine = null;
         Debug.Log("[穿衣系统] 对话框关闭，等待玩家通过导航系统前往下一个场景（如：整理书包/出门）。");
     }
 
@@ -153,89 +166,64 @@ public class DressingManager : MonoBehaviour
         {
             casualButton.interactable = state;
             casualButton.gameObject.SetActive(state);
-            StartMask(state);
         }
         if (weatherButton != null) 
         {
             weatherButton.interactable = state;
             weatherButton.gameObject.SetActive(state);
-            StartMask(state);
         }
         if (gorgeousButton != null)
         {
             gorgeousButton.interactable = state;
             gorgeousButton.gameObject.SetActive(state);
-            StartMask(state);
         }
 
         
     }
 
 
-    void StartMask(bool buttonState)
+    IEnumerator FadeMask(float targetAlpha, float fadeDuration)
     {
-        //呱：如果没点击按钮就返回
-        if (buttonState == true) return;
+        if (mask == null) yield break;
 
-        mask.color = new Color(0, 0, 0, 0);
-        mask.gameObject.SetActive(!buttonState);
-        StartCoroutine(WaitAndFade());
+        mask.gameObject.SetActive(true);
+        float startAlpha = mask.color.a;
+        float elapsed = 0f;
+        float safeDuration = Mathf.Max(0.0001f, fadeDuration);
 
-    }
-
-    IEnumerator WaitAndFade()
-    {
-        //呱:渐显黑幕
-        yield return Emerge(mask,duration);
-
-
-        //呱：等待字幕显示
-        yield return new WaitForSeconds(lastingTime);
-        
-
-        //呱：渐隐黑幕
-        yield return Vanish(mask, duration);
-        
-
-        SetButtonState(button1, true);
-        SetButtonState(button2, true);
-        SetButtonState(button3, true);
-    }
-
-    //呱：渐显
-    IEnumerator Emerge(Image image,float duration)
-    {
-        
-        float duringTime = 0;
-        while(duringTime < duration)
+        while (elapsed < safeDuration)
         {
-            duringTime += Time.deltaTime;
-            image.color = new Color(0,0,0, duringTime / duration);
+            elapsed += Time.deltaTime;
+            SetMaskAlpha(Mathf.Lerp(startAlpha, targetAlpha, elapsed / safeDuration));
             yield return null;
         }
 
-        image.color = new Color(0, 0, 0, 1);
+        SetMaskAlpha(targetAlpha);
+        mask.gameObject.SetActive(targetAlpha > 0.01f);
     }
 
-    //呱：渐隐
-    IEnumerator Vanish(Image image, float duration)
+    void SetMaskAlpha(float alpha)
     {
-        float duringTime = 0;
-        while (duringTime < duration)
-        {
-            duringTime += Time.deltaTime;
-            image.color = new Color(0, 0, 0, 1-(duringTime / duration));
-            yield return null;
-        }
-
-        image.color = new Color(0, 0, 0, 0);
-        mask.gameObject.SetActive(false);
-        dialogueText.text = "";
+        if (mask == null) return;
+        Color color = mask.color;
+        mask.color = new Color(color.r, color.g, color.b, alpha);
     }
 
+    void ClearDialogue()
+    {
+        if (dialogueText != null) dialogueText.text = "";
+        if (dialogueBox != null) dialogueBox.SetActive(false);
+    }
+
+    void EnsureDialogueAboveMask()
+    {
+        if (mask != null) mask.transform.SetAsLastSibling();
+        if (dialogueBox != null) dialogueBox.transform.SetAsLastSibling();
+    }
 
     void SetButtonState(Button button,bool state)
     {
+        if (button == null) return;
         button.gameObject.SetActive(state);
     }
 }

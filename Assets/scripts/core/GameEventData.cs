@@ -37,7 +37,7 @@ public class GameEventData : ScriptableObject
     // ── 通用限制 ─────────────────────────────────────────
     [Header("日期 & 场景限制")]
     public int minDay = 1;
-    public int maxDay = 30;
+    public int maxDay = 7;
     [Tooltip("留空 = 所有场景均可触发")]
     public string[] triggerScenes;
 

@@ -28,8 +28,10 @@ public class DormSceneManager : MonoBehaviour
 
     void Start()
     {
-        RefreshUI();
         TimeManager.OnTimeChanged += OnTimeUpdate;
+        if (TimeManager.Instance != null)
+            OnTimeUpdate(TimeManager.Instance.gameHour);
+        RefreshUI();
     }
 
     void OnDestroy()
@@ -39,6 +41,8 @@ public class DormSceneManager : MonoBehaviour
 
     void OnTimeUpdate(float hour)
     {
+        if (TimeManager.Instance == null) return;
+
         if (timeText != null)
             timeText.text = TimeManager.Instance.GetFormattedTime();
 

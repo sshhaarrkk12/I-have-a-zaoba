@@ -8,6 +8,8 @@ public class UIManager : MonoBehaviour
 
     // 不需要在Inspector里赋值，自动创建
     Image fadeOverlay;
+    public float FadeAlpha => fadeOverlay != null ? fadeOverlay.color.a : 0f;
+    public bool IsFadeVisible => FadeAlpha > 0.01f;
 
     void Awake()
     {

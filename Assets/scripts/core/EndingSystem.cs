@@ -4,96 +4,6 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 
-// ==================== 结局数据定义 ====================
-
-[CreateAssetMenu(fileName = "NewEnding", menuName = "EarlyClass8/Ending")]
-public class EndingData : ScriptableObject
-{
-    [Header("基础信息")]
-    public string endingId;
-    public string endingTitle;          // 结局标题，如"完美毕业"
-    [TextArea(2, 4)]
-    public string endingDescription;    // 结局描述文字
-
-    [Header("触发方式（可多选，满足任意一个即触发）")]
-    public bool triggerOnDayEnd = false; // 30天结束时触发
-    public bool triggerOnStatBreak = false; // 属性爆掉时触发
-    public bool triggerOnEventTag = false; // 特定事件标签触发
-
-    [Header("30天结束触发条件（triggerOnDayEnd=true时有效）")]
-    [Tooltip("30天结束后检查属性是否满足这些条件才触发此结局")]
-    public List<StatCondition> dayEndConditions = new List<StatCondition>();
-
-    [Header("属性爆掉触发条件（triggerOnStatBreak=true时有效）")]
-    public StatsEventType breakStat;        // 哪个属性爆掉
-    public ConditionCompare breakCompare;   // 高于还是低于
-    public float breakValue = 0f;           // 临界值
-
-    [Header("事件标签触发（triggerOnEventTag=true时有效）")]
-    public string triggerTag;               // 触发此结局的事件标签
-
-    [Header("优先级（数字越大越优先，相同条件时高优先级胜出）")]
-    public int priority = 0;
-
-    [Header("结局内容")]
-    // ⚠️ 修改 1：将 DialogueSequence 改为 DialogueNode
-    public DialogueNode endingDialogue;     // 结局对话/剧情 (可以只配一两句话，也可以直接留空)
-    public Sprite endingCG;                 // 结局CG图（可空）
-
-    [Header("结局类型")]
-    public EndingType endingType = EndingType.Normal;
-
-    /// <summary>检查30天结束时的属性条件是否全部满足</summary>
-    public bool CheckDayEndConditions()
-    {
-        if (dayEndConditions == null || dayEndConditions.Count == 0) return true;
-        foreach (var cond in dayEndConditions)
-            if (!cond.IsMet()) return false;
-        return true;
-    }
-}
-
-public enum EndingType
-{
-    Good,    // 好结局
-    Normal,  // 普通结局
-    Bad,     // 坏结局
-    Secret   // 隐藏结局
-}
-
-/// <summary>属性条件（结局触发时检查）</summary>
-[Serializable]
-public class StatCondition
-{
-    public StatsEventType stat;
-    public ConditionCompare compare;
-    public float value;
-
-    public bool IsMet()
-    {
-        var p = PlayerStats.Instance;
-        if (p == null) return false;
-
-        float current = stat switch
-        {
-            StatsEventType.Mood => p.mood,
-            StatsEventType.InstantStamina => p.instantStamina,
-            StatsEventType.CoreStamina => p.coreStamina,
-            StatsEventType.Stress => p.instantStress,
-            StatsEventType.Fatigue => p.fatigue,
-            StatsEventType.Health => p.health,
-            StatsEventType.Academic => p.academic,
-            _ => 0f
-        };
-
-        return compare == ConditionCompare.LessThan
-            ? current < value
-            : current > value;
-    }
-}
-
-// ==================== 结局管理器 ====================
-
 public class EndingSystem : MonoBehaviour
 {
     public static EndingSystem Instance { get; private set; }
@@ -111,6 +21,7 @@ public class EndingSystem : MonoBehaviour
 
     // ⚠️ 修改 2：新增对外暴露的当前结局数据，供结局场景的 UI 读取！
     public EndingData CurrentEnding { get; private set; }
+    public bool HasTriggered => endingTriggered;
 
     public static event Action<EndingData> OnEndingTriggered;
 
@@ -135,20 +46,33 @@ public class EndingSystem : MonoBehaviour
         EventManager.OnEventFinished -= OnEventFinished;
     }
 
-    // ==================== 触发方式1：30天结束 ====================
+    // ==================== 触发方式1：最终日结束 ====================
 
     void OnDayEnd()
     {
         if (endingTriggered) return;
-        if (PlayerStats.Instance.currentDay < PlayerStats.MAX_DAYS) return;
+        if (PlayerStats.Instance.currentDay <= PlayerStats.MAX_DAYS) return;
 
         var candidates = allEndings
-            .Where(e => e.triggerOnDayEnd && e.CheckDayEndConditions())
+            .Where(e => e != null && e.triggerOnDayEnd && IsDayEndMatch(e))
             .OrderByDescending(e => e.priority)
             .ToList();
 
         var ending = candidates.Count > 0 ? candidates[0] : defaultEnding;
         if (ending != null) TriggerEnding(ending);
+    }
+
+    bool IsDayEndMatch(EndingData ending)
+    {
+        if (ending.dayEndConditions != null && ending.dayEndConditions.Count > 0)
+            return ending.CheckDayEndConditions();
+
+        // Compatibility: some existing final-day endings store a single stat
+        // condition in breakStat/breakValue without enabling triggerOnStatBreak.
+        if (ending.breakValue > 0f)
+            return CheckStatCondition(ending.breakStat, ending.breakCompare, ending.breakValue);
+
+        return false;
     }
 
     // ==================== 触发方式2：属性爆掉 ====================
@@ -192,9 +116,10 @@ public class EndingSystem : MonoBehaviour
 
     // ==================== 核心触发逻辑 ====================
 
-    void TriggerEnding(EndingData ending)
+    public void TriggerEnding(EndingData ending)
     {
         if (endingTriggered) return;
+        if (ending == null) return;
         endingTriggered = true;
 
         // 记录下来，方便下一个场景读取
@@ -207,6 +132,87 @@ public class EndingSystem : MonoBehaviour
             TimeManager.Instance.isPaused = true;
 
         StartCoroutine(PlayEnding(ending));
+    }
+
+    public void ForceEnding(int index = 0)
+    {
+        if (allEndings == null || allEndings.Count == 0)
+        {
+            Debug.LogWarning("[Ending] No ending is configured");
+            return;
+        }
+
+        index = Mathf.Clamp(index, 0, allEndings.Count - 1);
+        TriggerEnding(allEndings[index]);
+    }
+
+    public void ForceEndingByTitle(string title)
+    {
+        if (string.IsNullOrEmpty(title) || title.Trim().Length == 0)
+        {
+            ForceEnding();
+            return;
+        }
+
+        var ending = allEndings.FirstOrDefault(e => e != null && e.endingTitle == title);
+        if (ending == null)
+        {
+            Debug.LogWarning($"[Ending] Ending not found: {title}");
+            return;
+        }
+
+        TriggerEnding(ending);
+    }
+
+    [ContextMenu("Debug/Force First Ending")]
+    void DebugForceFirstEnding()
+    {
+        ForceEnding();
+    }
+
+    [ContextMenu("Debug/Run Final Day End Check")]
+    void DebugRunFinalDayEndCheck()
+    {
+        if (PlayerStats.Instance == null)
+        {
+            ForceEnding();
+            return;
+        }
+
+        PlayerStats.Instance.currentDay = PlayerStats.MAX_DAYS;
+        PlayerStats.Instance.EndOfDayUpdate();
+    }
+
+    public static bool CheckStatCondition(StatsEventType stat, ConditionCompare compare, float value)
+    {
+        if (!TryGetStatValue(stat, out float current)) return false;
+
+        return compare == ConditionCompare.LessThan
+            ? current < value
+            : current > value;
+    }
+
+    public static bool TryGetStatValue(StatsEventType stat, out float value)
+    {
+        var p = PlayerStats.Instance;
+        value = 0f;
+        if (p == null) return false;
+
+        value = stat switch
+        {
+            StatsEventType.Mood => p.mood,
+            StatsEventType.InstantStamina => p.instantStamina,
+            StatsEventType.CoreStamina => p.coreStamina,
+            StatsEventType.Stress => p.instantStress,
+            StatsEventType.CoreStress => p.coreStress,
+            StatsEventType.Fatigue => p.fatigue,
+            StatsEventType.Health => p.health,
+            StatsEventType.Academic => p.academic,
+            StatsEventType.Social => p.social,
+            _ => 0f
+        };
+
+        return true;
     }
 
     IEnumerator PlayEnding(EndingData ending)

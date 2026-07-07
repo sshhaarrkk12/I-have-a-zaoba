@@ -95,6 +95,7 @@ public class ClassroomSceneManager : MonoBehaviour
     private bool missedCheckIn = false;
     private bool isPlayingPhone = false;
     private bool isSleeping = false;
+    private bool useLocalTimeText = true;
 
     // 时间事件注册表（小时阈值 + 处理函数）
     private struct HourEvent
@@ -124,8 +125,11 @@ public class ClassroomSceneManager : MonoBehaviour
 
     void Start()
     {
+        ResolveTimeTextVisibility();
         TimeManager.OnTimeChanged += OnTimeUpdate;
         TimeManager.OnNoon += OnNoon;
+        if (TimeManager.Instance != null)
+            OnTimeUpdate(TimeManager.Instance.gameHour);
         SetStatus("准备上课...");
         StartCoroutine(TimeDispatchLoop());
     }
@@ -143,8 +147,20 @@ public class ClassroomSceneManager : MonoBehaviour
 
     void OnTimeUpdate(float hour)
     {
-        if (timeText != null)
+        if (useLocalTimeText && timeText != null)
             timeText.text = TimeManager.Instance.GetFormattedTime();
+    }
+
+    void ResolveTimeTextVisibility()
+    {
+        bool hasGlobalTimeText = GlobalTimeDisplay.Instance != null
+            && GlobalTimeDisplay.Instance.timeText != null
+            && GlobalTimeDisplay.Instance.timeText.gameObject.activeInHierarchy;
+
+        useLocalTimeText = !hasGlobalTimeText;
+
+        if (timeText != null)
+            timeText.gameObject.SetActive(useLocalTimeText);
     }
 
     void OnNoon()

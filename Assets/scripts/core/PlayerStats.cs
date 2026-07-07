@@ -45,7 +45,7 @@ public class PlayerStats : ScriptableObject
 
     [Header("=== 日期 ===")]
     public int currentDay = 1;
-    public const int MAX_DAYS = 30;
+    public const int MAX_DAYS = 7;
     public int week = 1;
 
     public static event Action<StatsEventType, float> OnCriticalThreshold;

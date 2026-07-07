@@ -20,7 +20,7 @@ MonoBehaviour:
   triggerChance: 1
   requiredTags: []
   minDay: 1
-  maxDay: 30
+  maxDay: 7
   conditionStat: 0
   conditionCompare: 0
   conditionValue: 100

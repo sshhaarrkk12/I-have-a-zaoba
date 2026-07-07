@@ -9,7 +9,7 @@ MonoBehaviour:
   m_GameObject: {fileID: 0}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 0}
+  m_Script: {fileID: 11500000, guid: a6fbb4b0d79e4d7bb6c30d57a0dcb61e, type: 3}
   m_Name: "\u5927\u5B66\u751F\u4FDD\u547D\u5B88\u5219"
   m_EditorClassIdentifier: Assembly-CSharp::EndingData
   endingId: 

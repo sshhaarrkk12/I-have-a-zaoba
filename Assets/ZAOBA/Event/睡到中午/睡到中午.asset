@@ -27,7 +27,7 @@ MonoBehaviour:
   conditionCompare: 0
   conditionValue: 50
   minDay: 1
-  maxDay: 30
+  maxDay: 7
   triggerScenes:
   - Wakeup
   triggerOnce: 0

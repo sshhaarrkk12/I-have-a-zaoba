@@ -121,6 +121,9 @@ public class GameManager : MonoBehaviour
 
         // Ω·À„ÃÏ ˝
         playerStats.EndOfDayUpdate();
+        if (EndingSystem.Instance != null && EndingSystem.Instance.HasTriggered)
+            yield break;
+
         playerStats.sleepQuality = SleepSystem.CalculateSleepQuality(playerStats);
 
         yield return new WaitForSeconds(0.5f);

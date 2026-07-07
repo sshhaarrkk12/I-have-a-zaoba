@@ -41,6 +41,7 @@ public class CorridorSceneManager : MonoBehaviour
     {
         destinationText.text = GetDestinationName();
         UpdateUI();
+        RefreshTimeUI();
     }
 
     string GetDestinationName()
@@ -203,5 +204,11 @@ public class CorridorSceneManager : MonoBehaviour
     void UpdateUI()
     {
         staminaBar.value = PlayerStats.Instance.instantStamina / 100f;
+    }
+
+    void RefreshTimeUI()
+    {
+        if (timeText != null && TimeManager.Instance != null)
+            timeText.text = TimeManager.Instance.GetFormattedTime();
     }
 }
