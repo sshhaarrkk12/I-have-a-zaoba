@@ -5,7 +5,6 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using Unity.VisualScripting;
-using UnityEngine.SceneManagement;
 
 // ─────────────────────────────────────────────
 //  DialogueLine：单行对话数据（全局唯一定义）
@@ -52,7 +51,7 @@ public class DialogueManager : MonoBehaviour
     public Vector2 choiceButtonMinSize = new Vector2(420f, 160f);
     public float choiceButtonLineHeight = 160f;
     public float choiceButtonExtraWidth = 200f;
-
+    
 
     [Header("其他")]
     public GameObject clickHint;
@@ -82,11 +81,6 @@ public class DialogueManager : MonoBehaviour
 
     [Header("DialogueCanvas 根物体（顶层，DontDestroyOnLoad）")]
     public GameObject dialogueCanvas;
-    public int dialogueSortingOrder = 39;
-    public TextMeshProUGUI classCountdownText;
-    public TextMeshProUGUI timeText;
-    Color timeTextDefaultColor;
-    bool hasTimeTextDefaultColor;
 
     void Start()
     {
@@ -107,121 +101,14 @@ public class DialogueManager : MonoBehaviour
         }
         Instance = this;
         DontDestroyOnLoad(gameObject);
-        EnsureDialogueCanvasOrder();
-        TimeManager.OnTimeChanged += OnTimeUpdate;
-        SceneManager.sceneLoaded += OnSceneLoaded;
         if (dialogueCanvas != null)
             DontDestroyOnLoad(dialogueCanvas);
         else if (dialogueRoot != null)
             DontDestroyOnLoad(dialogueRoot.transform.root.gameObject);
-        UpdateClassCountdown();
-        if (TimeManager.Instance != null)
-            UpdateTimeTextColor(TimeManager.Instance.gameHour);
         Hide();
     }
 
-    void OnDestroy()
-    {
-        TimeManager.OnTimeChanged -= OnTimeUpdate;
-        SceneManager.sceneLoaded -= OnSceneLoaded;
-    }
-
     // ==================== 公开 API ====================
-
-    void EnsureDialogueCanvasOrder()
-    {
-        Transform canvasRoot = dialogueCanvas != null
-            ? dialogueCanvas.transform
-            : dialogueRoot != null ? dialogueRoot.transform.root : null;
-
-        if (canvasRoot == null) return;
-
-        canvasRoot.SetAsLastSibling();
-
-        Canvas canvas = canvasRoot.GetComponent<Canvas>();
-        if (canvas == null)
-            canvas = canvasRoot.GetComponentInChildren<Canvas>(true);
-
-        if (canvas == null) return;
-
-        canvas.overrideSorting = true;
-        canvas.sortingOrder = dialogueSortingOrder;
-    }
-
-    void OnTimeUpdate(float hour)
-    {
-        UpdateClassCountdown();
-        UpdateTimeTextColor(hour);
-    }
-
-    void OnSceneLoaded(Scene scene, LoadSceneMode mode)
-    {
-        UpdateClassCountdown();
-    }
-
-    public void RefreshClassCountdown()
-    {
-        UpdateClassCountdown();
-        if (TimeManager.Instance != null)
-            UpdateTimeTextColor(TimeManager.Instance.gameHour);
-    }
-
-    void UpdateTimeTextColor(float hour)
-    {
-        if (timeText == null || TimeManager.Instance == null) return;
-
-        if (!hasTimeTextDefaultColor)
-        {
-            timeTextDefaultColor = timeText.color;
-            hasTimeTextDefaultColor = true;
-        }
-
-        timeText.color = hour >= TimeManager.Instance.classStartTime
-            ? GamePalette.Mid
-            : timeTextDefaultColor;
-    }
-
-    void UpdateClassCountdown()
-    {
-        if (classCountdownText == null) return;
-        if (TimeManager.Instance == null)
-        {
-            classCountdownText.gameObject.SetActive(false);
-            return;
-        }
-
-        if (ShouldHideClassCountdown())
-        {
-            classCountdownText.gameObject.SetActive(false);
-            return;
-        }
-
-        classCountdownText.gameObject.SetActive(true);
-
-        string sceneName = SceneManager.GetActiveScene().name;
-        if (sceneName == "Classroom")
-        {
-            classCountdownText.text = "上课中";
-            return;
-        }
-
-        int minutes = Mathf.CeilToInt(TimeManager.Instance.MinutesToClass());
-        classCountdownText.text = minutes > 0
-            ? $"距离上课还有 {minutes} 分钟！"
-            : "已经迟到啦！！";
-    }
-
-    bool ShouldHideClassCountdown()
-    {
-        if (SceneManager.GetActiveScene().name == "PhoneUI")
-            return true;
-
-        PhoneManager phone = PhoneManager.Instance;
-        return phone != null
-            && phone.IsOpen
-            && phone.alarmPanel != null
-            && phone.alarmPanel.activeInHierarchy;
-    }
 
     public void Show(string text, Action onDone = null, string charName = "", Sprite portrait = null)
     {
@@ -602,8 +489,8 @@ public class DialogueManager : MonoBehaviour
     //呱：这个是我打的补丁 给一开始消失不掉的状态文字搞的
     public void OnButtonClick()
     {
-
-        // wakeUpSceneManager.ClearWakeUpText();
-
+       
+       // wakeUpSceneManager.ClearWakeUpText();
+     
     }
 }
