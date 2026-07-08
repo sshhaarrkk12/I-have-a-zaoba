@@ -28,6 +28,8 @@ public class GameManager : MonoBehaviour
     public DailySchedule tomorrowSchedule = new DailySchedule();
     public static event Action<GamePhase> OnPhaseChanged;
 
+    private bool isTransitioningToNextDay = false;
+
     void Awake()
     {
         Debug.Log($"[GM] Awake, parent={transform.parent?.name ?? "null(����)"}");
@@ -77,7 +79,11 @@ public class GameManager : MonoBehaviour
         ChangePhase(GamePhase.WakeUp);
         float wakeTime = SleepSystem.CalculateWakeUpTime(playerStats);
         playerStats.wakeUpTime = wakeTime;
-        TimeManager.Instance?.ResetForNewDay(wakeTime);
+        if (TimeManager.Instance != null)
+        {
+            TimeManager.Instance.ResetForNewDay(wakeTime);
+            TimeManager.Instance.isPaused = true;
+        }
         if (playerStats.currentDay > 1)
             playerStats.NewDayReset();
 
@@ -105,10 +111,17 @@ public class GameManager : MonoBehaviour
         LoadScene(phoneUIScene);
     }
 
-   
+
 
     public void ConfirmTomorrowPlan(DailySchedule schedule)
     {
+        if (isTransitioningToNextDay)
+        {
+            Debug.LogWarning("[GM] 夜间过渡已在进行，忽略重复确认");
+            return;
+        }
+
+        isTransitioningToNextDay = true;
         tomorrowSchedule = schedule;
         ChangePhase(GamePhase.Night);
         StartCoroutine(SleepTransition());
@@ -116,22 +129,26 @@ public class GameManager : MonoBehaviour
 
     IEnumerator SleepTransition()
     {
-        // �����Ļ
-        UIManager.Instance?.ShowFade(true, 1f);
-        yield return new WaitForSeconds(1.5f);
+        try
+        {
+            UIManager.Instance?.ShowFade(true, 1f);
+            yield return new WaitForSeconds(1.5f);
 
-        // �����ճ̻����
-        ScheduleSystem.Instance?.SettleSchedule();
+            ScheduleSystem.Instance?.SettleSchedule();
 
-        // ��������
-        playerStats.EndOfDayUpdate();
-        if (EndingSystem.Instance != null && EndingSystem.Instance.HasTriggered)
-            yield break;
+            playerStats.EndOfDayUpdate();
+            if (EndingSystem.Instance != null && EndingSystem.Instance.HasTriggered)
+                yield break;
 
-        playerStats.sleepQuality = SleepSystem.CalculateSleepQuality(playerStats);
+            playerStats.sleepQuality = SleepSystem.CalculateSleepQuality(playerStats);
 
-        yield return new WaitForSeconds(0.5f);
-        StartDay();
+            yield return new WaitForSeconds(0.5f);
+            StartDay();
+        }
+        finally
+        {
+            isTransitioningToNextDay = false;
+        }
     }
 
     // ==================== ������ת ====================
@@ -177,7 +194,7 @@ public class GameManager : MonoBehaviour
         Debug.Log($"[GM] Phase �� {p}");
     }
 
-    
+
 }
 
 public enum GamePhase { WakeUp, Morning, InClass, Noon, Night }

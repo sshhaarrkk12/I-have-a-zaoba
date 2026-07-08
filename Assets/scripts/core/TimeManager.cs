@@ -144,7 +144,7 @@ public class TimeManager : MonoBehaviour
 
     public void ResetForNewDay(float startHour)
     {
-        gameHour = startHour;
+        gameHour = Mathf.Max(0f, startHour);
         classWarningFired = false;
         classStartFired = false;
         noonFired = false;
@@ -153,6 +153,7 @@ public class TimeManager : MonoBehaviour
         isPaused = true;
         previousSceneName = string.Empty;
         OnTimeChanged?.Invoke(gameHour);
+        Debug.Log($"[Time] 新一天开始，时间重置为 {GetFormattedTime()}");
     }
 
     float GetTransitionHours(string fromScene, string toScene)

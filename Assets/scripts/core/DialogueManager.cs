@@ -360,7 +360,10 @@ public class DialogueManager : MonoBehaviour
                 btn.onClick.RemoveAllListeners();
                 TextMeshProUGUI label = GetChoiceLabel(i, btn);
                 if (label != null)
+                {
                     label.text = choices[i].label;
+                    BlackScreenText.ApplyPreferredFont(label);
+                }
                 var c = choices[i];
                 btn.onClick.AddListener(() =>
                 {
