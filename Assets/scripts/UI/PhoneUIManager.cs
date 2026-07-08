@@ -1,5 +1,6 @@
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using TMPro; // ���� TextMeshPro
 using System.Collections;
 using System.Collections.Generic;
@@ -27,6 +28,8 @@ public class PhoneUIManager : MonoBehaviour
     [Header("ȷ�ϰ�ť")]
     public Button confirmButton;
 
+    [SerializeField] private TMP_FontAsset myFont;
+
     private List<ActivityData> selectedActivities = new List<ActivityData>();
     private Dictionary<ActivityData, Toggle> activityToggles = new Dictionary<ActivityData, Toggle>();
 
@@ -48,7 +51,7 @@ public class PhoneUIManager : MonoBehaviour
             confirmButton.onClick.AddListener(OnConfirm);
         }
 
-        if (statusText != null) statusText.text = "���ź�������ճ̣�Ȼ��ȥ˯����";
+        if (statusText != null) statusText.text = "睡觉ing";
     }
 
     private void InitUIState()
@@ -63,6 +66,7 @@ public class PhoneUIManager : MonoBehaviour
             alarmTimeSlider.value = PlayerStats.Instance?.alarmTime ?? 7.5f;
             alarmTimeSlider.onValueChanged.AddListener(UpdateAlarmText);
             UpdateAlarmText(alarmTimeSlider.value);
+            Debug.Log($"{alarmTimeSlider.value}");
         }
 
         if (alarmToggle != null)
@@ -220,7 +224,7 @@ public class PhoneUIManager : MonoBehaviour
     {
         int h = (int)val;
         int m = (int)((val - h) * 60);
-        if (alarmTimeText != null) alarmTimeText.text = $"���ӣ�{h:D2}:{m:D2}";
+        if (alarmTimeText != null) alarmTimeText.text = $"Day2闹钟 {h}:{m}";
     }
 
     void UpdateTotalTime()
@@ -254,7 +258,73 @@ public class PhoneUIManager : MonoBehaviour
 
     IEnumerator ConfirmDelay(DailySchedule schedule)
     {
-        yield return new WaitForSeconds(0.8f);
-        GameManager.Instance?.ConfirmTomorrowPlan(schedule);
+        // Create full-screen black mask with centered TMP text
+        var canvas = FindObjectOfType<Canvas>();
+        if (canvas == null)
+        {
+            var cg1 = new GameObject("AutoCanvas", typeof(Canvas), typeof(UnityEngine.UI.CanvasScaler), typeof(UnityEngine.UI.GraphicRaycaster));
+            canvas = cg1.GetComponent<Canvas>();
+            canvas.renderMode = RenderMode.ScreenSpaceOverlay;
+        }
+
+        var mask = new GameObject("SleepMask", typeof(RectTransform), typeof(CanvasRenderer), typeof(Image));
+        mask.transform.SetParent(canvas.transform, false);
+        var img = mask.GetComponent<Image>();
+        img.color = Color.black;
+        var rt = mask.GetComponent<RectTransform>();
+        rt.anchorMin = Vector2.zero;
+        rt.anchorMax = Vector2.one;
+        rt.offsetMin = Vector2.zero;
+        rt.offsetMax = Vector2.zero;
+
+        var cg = mask.AddComponent<CanvasGroup>();
+        cg.alpha = 0f;
+
+        var textGO = new GameObject("SleepMaskText", typeof(RectTransform));
+        textGO.transform.SetParent(mask.transform, false);
+        var tmp = textGO.AddComponent<TextMeshProUGUI>();
+        tmp.alignment = TextAlignmentOptions.Center;
+        tmp.color = Color.white;
+        tmp.font = myFont;
+        tmp.fontSize = 84;
+        tmp.text = "睡觉的时间过得总是很快";
+        var tr = tmp.GetComponent<RectTransform>();
+        tr.anchorMin = new Vector2(0.1f, 0.4f);
+        tr.anchorMax = new Vector2(0.9f, 0.6f);
+        tr.offsetMin = Vector2.zero;
+        tr.offsetMax = Vector2.zero;
+
+        // Fade in (0.5s)
+        float t = 0f;
+        float fadeIn = 0.5f;
+        while (t < fadeIn)
+        {
+            t += Time.unscaledDeltaTime;
+            cg.alpha = Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeIn));
+            yield return null;
+        }
+        cg.alpha = 1f;
+
+        // Hold (2s)
+        yield return new WaitForSecondsRealtime(2f);
+
+        // Fade out (0.5s)
+        t = 0f;
+        float fadeOut = 0.5f;
+        while (t < fadeOut)
+        {
+            t += Time.unscaledDeltaTime;
+            cg.alpha = 1f - Mathf.Clamp01(t / Mathf.Max(0.0001f, fadeOut));
+            yield return null;
+        }
+        cg.alpha = 0f;
+
+        // Ensure game state updated, then load Wakeup
+        
+
+        Destroy(mask);
+        SceneManager.LoadScene("Wakeup");
     }
+
+    
 }

@@ -23,6 +23,7 @@ public class WashingUIController : MonoBehaviour
 
     void Start()
     {
+        mask.SetActive(false);
         // Initially hide the three target buttons
         if (targetButtons != null)
         {
@@ -117,6 +118,7 @@ public class WashingUIController : MonoBehaviour
     {
         if (mask == null) yield break;
 
+        yield break;
         mask.SetActive(true);
         if (maskGroup == null) maskGroup = mask.GetComponent<CanvasGroup>();
         maskGroup.alpha = 0f;

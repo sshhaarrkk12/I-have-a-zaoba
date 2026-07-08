@@ -35,6 +35,7 @@ public class WashroomManager : MonoBehaviour
     void Start()
     {
         if (mask != null) mask.gameObject.SetActive(false);
+        mask.color = new Color(1, 1, 1, 0);
 
         if (washButton != null) washButton.onClick.AddListener(() => OnOptionSelected(1));
         if (lightMakeupButton != null) lightMakeupButton.onClick.AddListener(() => OnOptionSelected(2));
@@ -104,12 +105,14 @@ public class WashroomManager : MonoBehaviour
     {
         if (dialogueBox != null) dialogueBox.SetActive(false);
 
-        yield return StartCoroutine(FadeMask(1f, duration));
+       
 
         if (dialogueBox != null && dialogueText != null)
         {
+            yield return StartCoroutine(EmergeMask());
             dialogueBox.SetActive(true);
-            EnsureDialogueAboveMask();
+            
+            //EnsureDialogueAboveMask();
             dialogueText.text = text;
         }
 
@@ -122,7 +125,7 @@ public class WashroomManager : MonoBehaviour
         }
 
         ClearDialogue();
-        yield return StartCoroutine(FadeMask(0f, duration));
+        yield return StartCoroutine(VanishMask());
 
         SetButtonState(button1, true);
         SetButtonState(button2, true);
@@ -160,24 +163,63 @@ public class WashroomManager : MonoBehaviour
             
     }
 
+    //遮罩渐显
+    IEnumerator EmergeMask()
+    {
+        mask.color = new Color(0,0,0, 0);
+        mask.gameObject.SetActive(true);
+
+        float elapsed = 0f;
+        float safeDuration = Mathf.Max(0.0001f, duration);
+
+        while (elapsed < safeDuration)
+        {
+            elapsed += Time.deltaTime;
+            mask.color = new Color(1, 1, 1, elapsed / safeDuration);
+            yield return null;
+        }
+
+        mask.color = new Color(0, 0, 0, 1);
+    }
+
+    //遮罩渐隐
+    IEnumerator VanishMask()
+    {
+        mask.color = new Color(0, 0, 0, 1);
+       
+
+        float elapsed = 0f;
+        float safeDuration = Mathf.Max(0.0001f, duration);
+
+        while (elapsed < safeDuration)
+        {
+            elapsed += Time.deltaTime;
+            mask.color = new Color(1, 1, 1, 1-(elapsed / safeDuration));
+            yield return null;
+        }
+
+        mask.color = new Color(0, 0, 0, 0);
+        mask.gameObject.SetActive(false);
+    }
+
     IEnumerator FadeMask(float targetAlpha, float fadeDuration)
     {
         if (mask == null) yield break;
-
+        mask.color = new Color(1, 1, 1, 0);
         mask.gameObject.SetActive(true);
-        float startAlpha = mask.color.a;
+      
         float elapsed = 0f;
         float safeDuration = Mathf.Max(0.0001f, fadeDuration);
 
         while (elapsed < safeDuration)
         {
             elapsed += Time.deltaTime;
-            SetMaskAlpha(Mathf.Lerp(startAlpha, targetAlpha, elapsed / safeDuration));
+            mask.color = new Color(1, 1, 1, elapsed / safeDuration);
             yield return null;
         }
 
-        SetMaskAlpha(targetAlpha);
-        mask.gameObject.SetActive(targetAlpha > 0.01f);
+        mask.color = new Color(1, 1, 1, 1);
+       // mask.gameObject.SetActive(targetAlpha > 0.01f);
     }
 
     void SetMaskAlpha(float alpha)
