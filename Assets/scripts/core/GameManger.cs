@@ -105,6 +105,8 @@ public class GameManager : MonoBehaviour
         LoadScene(phoneUIScene);
     }
 
+   
+
     public void ConfirmTomorrowPlan(DailySchedule schedule)
     {
         tomorrowSchedule = schedule;
