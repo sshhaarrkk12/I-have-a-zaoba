@@ -23,18 +23,7 @@ public class WashingUIController : MonoBehaviour
 
     void Start()
     {
-        if (GetComponent<WashroomManager>() != null)
-        {
-            enabled = false;
-            return;
-        }
-
-        // Ensure mask exists before using it.
-        if (mask == null)
-        {
-            CreateMask();
-        }
-
+        mask.SetActive(false);
         // Initially hide the three target buttons
         if (targetButtons != null)
         {
@@ -42,6 +31,18 @@ public class WashingUIController : MonoBehaviour
             {
                 if (go != null) go.SetActive(false);
             }
+        }
+
+        if (GetComponent<WashroomManager>() != null)
+        {
+            enabled = false;
+            return;
+        }
+
+        // Ensure mask exists and its CanvasGroup
+        if (mask == null)
+        {
+            CreateMask();
         }
 
         maskGroup = mask.GetComponent<CanvasGroup>();
@@ -123,6 +124,7 @@ public class WashingUIController : MonoBehaviour
     {
         if (mask == null) yield break;
 
+        yield break;
         mask.SetActive(true);
         if (maskGroup == null) maskGroup = mask.GetComponent<CanvasGroup>();
         maskGroup.alpha = 0f;
