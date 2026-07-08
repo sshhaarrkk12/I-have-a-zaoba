@@ -191,7 +191,6 @@ public class ClassroomSceneManager : MonoBehaviour
 
         // 等到进入上课时段
         yield return new WaitUntil(() => TimeManager.Instance.gameHour >= 8.0f);
-        SetStatus("上课中...");
 
         while (true)
         {

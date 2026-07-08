@@ -33,6 +33,12 @@ public class WashingUIController : MonoBehaviour
             }
         }
 
+        if (GetComponent<WashroomManager>() != null)
+        {
+            enabled = false;
+            return;
+        }
+
         // Ensure mask exists and its CanvasGroup
         if (mask == null)
         {

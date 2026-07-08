@@ -30,6 +30,7 @@ public class PackingController : MonoBehaviour
     CanvasGroup maskGroup;
     GameObject createdMask;
     TextMeshProUGUI createdText;
+    StatsChangeSnapshot currentStatsBefore;
 
     void Start()
     {
@@ -71,7 +72,11 @@ public class PackingController : MonoBehaviour
         }
 
         if (dormButton != null) dormButton.gameObject.SetActive(true);
-        if (toiletButton != null) toiletButton.gameObject.SetActive(true);
+        if (toiletButton != null)
+        {
+            toiletButton.gameObject.SetActive(true);
+            toiletButton.interactable = !MorningRoutineState.IsDone("Bathroom");
+        }
         if (goOutButton != null) goOutButton.gameObject.SetActive(true);
     }
 
@@ -139,6 +144,7 @@ public class PackingController : MonoBehaviour
     void OnButton1Clicked()
     {
         SetPackChoiceButtonsActive(false);
+        currentStatsBefore = StatsChangeSummary.Capture();
 
         var p = PlayerStats.Instance;
         if (p != null)
@@ -153,6 +159,7 @@ public class PackingController : MonoBehaviour
     void OnButton2Clicked()
     {
         SetPackChoiceButtonsActive(false);
+        currentStatsBefore = StatsChangeSummary.Capture();
 
         var p = PlayerStats.Instance;
         if (p != null)
@@ -172,30 +179,10 @@ public class PackingController : MonoBehaviour
 
     private IEnumerator PlayMaskSequence(string message, bool showPostButtonsWhenDone)
     {
-        if (maskText != null) maskText.text = message;
-        if (maskGroup == null) yield break;
-
-        SetMaskActive(true);
-        float t = 0f;
-        while (t < fadeTime)
-        {
-            t += Time.unscaledDeltaTime;
-            maskGroup.alpha = Mathf.Lerp(0f, 1f, t / Mathf.Max(0.0001f, fadeTime));
-            yield return null;
-        }
-        maskGroup.alpha = 1f;
-
-        if (holdTime > 0f) yield return new WaitForSecondsRealtime(holdTime);
-
-        t = 0f;
-        while (t < fadeTime)
-        {
-            t += Time.unscaledDeltaTime;
-            maskGroup.alpha = Mathf.Lerp(1f, 0f, t / Mathf.Max(0.0001f, fadeTime));
-            yield return null;
-        }
-        maskGroup.alpha = 0f;
         SetMaskActive(false);
+        yield return StartCoroutine(BlackScreenText.Play(this, message, fadeTime, holdTime));
+
+        StatsChangeSummary.Show(StatsChangeSummary.Build(currentStatsBefore));
 
         if (showPostButtonsWhenDone)
             ShowPostActionButtons();
@@ -211,6 +198,8 @@ public class PackingController : MonoBehaviour
 
     void OnToiletButtonClicked()
     {
+        if (MorningRoutineState.IsDone("Bathroom")) return;
+
         if (GameManager.Instance != null)
             GameManager.Instance.GoToBathroom();
         else

@@ -38,6 +38,7 @@ public class GoToClassDirect : MonoBehaviour
 
         // 锁定所有选择按钮，防止玩家在播对白时乱点
         SetActionButtonsInteractable(false);
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
 
         int minutesToSpend = 0;
         float targetFatigueAdd = 0f;
@@ -84,39 +85,27 @@ public class GoToClassDirect : MonoBehaviour
         }
 
         // 3. 显示反馈文本并开启链式跳转检测
-        ShowSingleLineDialogue(reviewText);
+        ShowSingleLineDialogue(reviewText, StatsChangeSummary.Build(beforeStats));
     }
 
-    private void ShowSingleLineDialogue(string text)
+    private void ShowSingleLineDialogue(string text, string statText)
     {
-        if (dialogueBox != null && dialogueText != null)
-        {
-            dialogueBox.SetActive(true);
-            dialogueText.text = text;
-            StartCoroutine(WaitForDismissAndLoadScene());
-        }
-        else
-        {
-            // 防御代码：如果你没有挂载对话框 UI，就直接进行转场，防止卡死
-            Load教学楼Scene();
-        }
+        StartCoroutine(WaitForDismissAndLoadScene(text, statText));
     }
 
     /// <summary>
     /// 核心链式逻辑：玩家看完一句话对白，点击屏幕后“直接跳转”到教室场景
     /// </summary>
-    private IEnumerator WaitForDismissAndLoadScene()
+    private IEnumerator WaitForDismissAndLoadScene(string text, string statText)
     {
-        yield return new WaitForSeconds(0.3f);
-
-        // 等待玩家点击屏幕确认这一句话
-        while (!Input.GetMouseButtonDown(0))
-        {
-            yield return null;
-        }
-
         // 关闭对话框（虽然马上切场景了，但顺手关闭是个好习惯）
         if (dialogueBox != null) dialogueBox.SetActive(false);
+        yield return StartCoroutine(BlackScreenText.Play(this, text));
+
+        bool statDone = false;
+        StatsChangeSummary.Show(statText, () => statDone = true);
+        yield return new WaitUntil(() => statDone || this == null);
+        if (this == null) yield break;
 
         // 🚨 4. 直接执行链式跳转！一步到位进入 教学楼
         Load教学楼Scene();

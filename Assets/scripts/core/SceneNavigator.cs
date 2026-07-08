@@ -71,7 +71,8 @@ public class SceneNavigator : MonoBehaviour
 
             navigationLocked = true;
             btn.interactable = false;
-            MorningRoutineState.MarkDone(sceneName);
+            if (sceneName != "Bathroom")
+                MorningRoutineState.MarkDone(sceneName);
             SceneStateManager.Instance?.SetCurrentScene(sceneName);
 
             Debug.Log($"[Navigator] Ìø×ªµ½ {sceneName}");

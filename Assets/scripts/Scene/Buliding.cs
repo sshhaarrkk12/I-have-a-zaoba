@@ -92,6 +92,8 @@ public class AcademicBuildingInteraction : MonoBehaviour
             SetActionButtonsInteractable(false); // 锁死全部按钮
         }
 
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
+
         // 1. 核心时间单位转换并推进
         float hoursToSpend = minutesToSpend / 60f;
         if (TimeManager.Instance != null)
@@ -111,34 +113,23 @@ public class AcademicBuildingInteraction : MonoBehaviour
         }
 
         // 2. 显示对应的一句话反馈
-        ShowSingleLineDialogue(reviewText, shouldTransition);
+        ShowSingleLineDialogue(reviewText, shouldTransition, StatsChangeSummary.Build(beforeStats));
     }
 
-    private void ShowSingleLineDialogue(string text, bool willLoadScene)
+    private void ShowSingleLineDialogue(string text, bool willLoadScene, string statText = null)
     {
-        if (dialogueBox != null && dialogueText != null)
-        {
-            dialogueBox.SetActive(true);
-            dialogueText.text = text;
-            StartCoroutine(WaitForDismiss(willLoadScene));
-        }
-        else if (willLoadScene)
-        {
-            LoadClassroomScene();
-        }
+        StartCoroutine(WaitForDismiss(text, willLoadScene, statText));
     }
 
-    private IEnumerator WaitForDismiss(bool willLoadScene)
+    private IEnumerator WaitForDismiss(string text, bool willLoadScene, string statText)
     {
-        yield return new WaitForSeconds(0.3f);
-
-        // 等待玩家点击屏幕
-        while (!Input.GetMouseButtonDown(0))
-        {
-            yield return null;
-        }
-
         if (dialogueBox != null) dialogueBox.SetActive(false);
+        yield return StartCoroutine(BlackScreenText.Play(this, text));
+
+        bool statDone = false;
+        StatsChangeSummary.Show(statText, () => statDone = true);
+        yield return new WaitUntil(() => statDone || this == null);
+        if (this == null) yield break;
 
         // 🚨 判断是直接进教室，还是留在原地重新选
         if (willLoadScene)

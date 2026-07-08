@@ -19,6 +19,7 @@ public class ToiletInteraction : MonoBehaviour
     {
         if (toiletButton != null)
         {
+            toiletButton.interactable = !MorningRoutineState.IsDone("Bathroom");
             toiletButton.onClick.AddListener(OnToiletButtonClicked);
         }
 
@@ -31,6 +32,7 @@ public class ToiletInteraction : MonoBehaviour
     private void OnToiletButtonClicked()
     {
         if (hasInteracted) return;
+        if (MorningRoutineState.IsDone("Bathroom")) return;
         hasInteracted = true;
         MorningRoutineState.MarkDone("Bathroom");
 
@@ -98,6 +100,7 @@ public class ToiletInteraction : MonoBehaviour
     private void ExecuteDefaultToiletLogic()
     {
         Debug.Log("[厕所系统] 未检索到可触发事件，执行保底日常。");
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
 
         // 1. 时间增加 5 分钟 (5 / 60f 小时)
         float hoursToSpend = 5f / 60f;
@@ -110,30 +113,19 @@ public class ToiletInteraction : MonoBehaviour
 
         // 3. 显示保底的一句话提示
         string defaultText = "非常顺畅！感觉整个人都变轻松了。";
-        ShowSingleLineDialogue(defaultText);
+        ShowSingleLineDialogue(defaultText, StatsChangeSummary.Build(beforeStats));
     }
 
-    private void ShowSingleLineDialogue(string text)
+    private void ShowSingleLineDialogue(string text, string statText)
     {
-        if (dialogueBox != null && dialogueText != null)
-        {
-            dialogueBox.SetActive(true);
-            dialogueText.text = text;
-            StartCoroutine(WaitForDismissDialogue());
-        }
+        StartCoroutine(WaitForDismissDialogue(text, statText));
     }
 
-    private IEnumerator WaitForDismissDialogue()
+    private IEnumerator WaitForDismissDialogue(string text, string statText)
     {
-        yield return new WaitForSeconds(0.3f);
-
-        // 等待玩家点击屏幕
-        while (!Input.GetMouseButtonDown(0))
-        {
-            yield return null;
-        }
-
         if (dialogueBox != null) dialogueBox.SetActive(false);
+        yield return StartCoroutine(BlackScreenText.Play(this, text));
+        StatsChangeSummary.Show(statText);
 
         Debug.Log("[厕所系统] 保底流程结束，维持原场景等待玩家后续出门操作。");
     }

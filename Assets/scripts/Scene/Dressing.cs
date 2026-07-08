@@ -60,6 +60,7 @@ public class DressingManager : MonoBehaviour
 
         // 锁定所有交互按钮
         SetActionButtonsInteractable(false);
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
 
         int minutesToSpend = 0;
         float moodReward = 0f;
@@ -117,41 +118,27 @@ public class DressingManager : MonoBehaviour
             PlayerStats.Instance.ChangeMood(moodReward);
         }
 
-        
+        if (PlayerStats.Instance != null && healthReward != 0)
+        {
+            PlayerStats.Instance.health = Mathf.Clamp(PlayerStats.Instance.health + healthReward, 0f, 100f);
+        }
 
         // 4. 显示对应的一句话反馈
-        ShowSingleLineDialogue(reviewText);
+        ShowSingleLineDialogue(reviewText, StatsChangeSummary.Build(beforeStats));
     }
 
-    private void ShowSingleLineDialogue(string text)
+    private void ShowSingleLineDialogue(string text, string statText)
     {
         if (transitionRoutine != null) StopCoroutine(transitionRoutine);
-        transitionRoutine = StartCoroutine(PlayBlackTextSequence(text));
+        transitionRoutine = StartCoroutine(PlayBlackTextSequence(text, statText));
     }
 
-    private IEnumerator PlayBlackTextSequence(string text)
+    private IEnumerator PlayBlackTextSequence(string text, string statText)
     {
         if (dialogueBox != null) dialogueBox.SetActive(false);
+        yield return StartCoroutine(BlackScreenText.Play(this, text, duration, lastingTime));
 
-        yield return StartCoroutine(FadeMask(1f, duration));
-
-        if (dialogueBox != null && dialogueText != null)
-        {
-            dialogueBox.SetActive(true);
-            EnsureDialogueAboveMask();
-            dialogueText.text = text;
-        }
-
-        float timer = 0f;
-        while (timer < lastingTime)
-        {
-            timer += Time.deltaTime;
-            if (Input.GetMouseButtonDown(0) || Input.touchCount > 0) break;
-            yield return null;
-        }
-
-        ClearDialogue();
-        yield return StartCoroutine(FadeMask(0f, duration));
+        StatsChangeSummary.Show(statText);
 
         SetButtonState(button1, true);
         SetButtonState(button2, true);

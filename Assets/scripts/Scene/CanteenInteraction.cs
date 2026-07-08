@@ -37,6 +37,7 @@ public class CanteenInteraction : MonoBehaviour
 
         // 锁定所有食物按钮，防止重复点击
         SetActionButtonsInteractable(false);
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
 
         int minutesToSpend = 0;
         float moodChange = 0f;
@@ -47,7 +48,8 @@ public class CanteenInteraction : MonoBehaviour
         {
             case 1:
                 minutesToSpend = 10;
-                moodChange = -5f;      // 心情下降                reviewText = "随便打了一份剩菜凑活了一下，钱包没怎么缩水，但肚子和心情都有些空落落的。";
+                moodChange = -5f;      // 心情下降
+                reviewText = "随便打了一份剩菜凑活了一下，钱包没怎么缩水，但肚子和心情都有些空落落的。";
                 break;
             case 2:
                 minutesToSpend = 20;
@@ -79,34 +81,23 @@ public class CanteenInteraction : MonoBehaviour
         }
 
         // 4. 显示对应的反馈文本
-        ShowSingleLineDialogue(reviewText);
+        ShowSingleLineDialogue(reviewText, StatsChangeSummary.Build(beforeStats));
     }
 
-    private void ShowSingleLineDialogue(string text)
+    private void ShowSingleLineDialogue(string text, string statText)
     {
-        if (dialogueBox != null && dialogueText != null)
-        {
-            dialogueBox.SetActive(true);
-            dialogueText.text = text;
-            StartCoroutine(WaitForDismissDialogue());
-        }
+        StartCoroutine(WaitForDismissDialogue(text, statText));
     }
 
     /// <summary>
     /// 仅关闭对话框，留在当前场景不跳转
     /// </summary>
-    private IEnumerator WaitForDismissDialogue()
+    private IEnumerator WaitForDismissDialogue(string text, string statText)
     {
-        yield return new WaitForSeconds(0.3f);
-
-        // 等待玩家鼠标点击确认这一句话
-        while (!Input.GetMouseButtonDown(0))
-        {
-            yield return null;
-        }
-
         // 隐去对话框
         if (dialogueBox != null) dialogueBox.SetActive(false);
+        yield return StartCoroutine(BlackScreenText.Play(this, text));
+        StatsChangeSummary.Show(statText);
 
         Debug.Log("[食堂系统] 对话框已关闭。不执行任何转场逻辑，原地等待玩家点击侧边栏或地图上的场景按钮。");
     }

@@ -63,8 +63,12 @@ public class WakeUpSceneManager : MonoBehaviour
 
         if (groggProgressBar != null) groggProgressBar.value = 0f;
 
-        // 第一天 或 没开闹钟 → 直接起床，不等闹钟
-        if (stats.currentDay == 1 || !stats.alarmSet)
+        float currentHour = GetCurrentHour();
+        bool reachedCalculatedWakeTime = currentHour >= stats.wakeUpTime - 0.01f;
+
+        // 新一天开始时 GameManager 已经把时间重置到计算出的实际醒来时间。
+        // 如果已经到点，直接进入起床流程，避免继续等待一个不会再次触发的闹钟事件。
+        if (stats.currentDay == 1 || !stats.alarmSet || reachedCalculatedWakeTime)
         {
             TriggerWakeUp();
         }
@@ -173,7 +177,7 @@ public class WakeUpSceneManager : MonoBehaviour
     {
         waitingForInput = true;
         if (wakeUpButton != null) wakeUpButton.interactable = true;
-        SetStatus(PlayerStats.Instance.alarmSet ? "闹钟响了，起床！" : "自然醒了……");
+        SetStatus(GetWakeUpStatusText());
         SetButtonText("起床");
         if (groggProgressBar != null) groggProgressBar.gameObject.SetActive(false);
         if (clickCountText != null) clickCountText.gameObject.SetActive(false);
@@ -589,6 +593,17 @@ public class WakeUpSceneManager : MonoBehaviour
     string GetCurrentTimeText()
     {
         return TimeManager.Instance != null ? TimeManager.Instance.GetFormattedTime() : "--:--";
+    }
+
+    string GetWakeUpStatusText()
+    {
+        PlayerStats stats = PlayerStats.Instance;
+        if (stats == null || !stats.alarmSet) return "自然醒了……";
+
+        float currentHour = GetCurrentHour();
+        if (currentHour > stats.alarmTime + 0.01f) return "睡过头了，快起床！";
+
+        return "闹钟响了，起床！";
     }
 
     void ChangeFatigueSafely(float delta)

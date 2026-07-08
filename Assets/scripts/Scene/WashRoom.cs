@@ -51,6 +51,7 @@ public class WashroomManager : MonoBehaviour
         MorningRoutineState.MarkDone("Washing");
 
         SetActionButtonsInteractable(false);
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
 
         int minutesToSpend = 0;
         float moodReward = 0f;
@@ -92,16 +93,16 @@ public class WashroomManager : MonoBehaviour
         else
             Debug.LogWarning("[洗漱系统] 未找到 PlayerStats 实例。");
 
-        ShowSingleLineDialogue(reviewText);
+        ShowSingleLineDialogue(reviewText, StatsChangeSummary.Build(beforeStats));
     }
 
-    private void ShowSingleLineDialogue(string text)
+    private void ShowSingleLineDialogue(string text, string statText)
     {
         if (transitionRoutine != null) StopCoroutine(transitionRoutine);
-        transitionRoutine = StartCoroutine(PlayBlackTextSequence(text));
+        transitionRoutine = StartCoroutine(PlayBlackTextSequence(text, statText));
     }
 
-    private IEnumerator PlayBlackTextSequence(string text)
+    private IEnumerator PlayBlackTextSequence(string text, string statText)
     {
         if (dialogueBox != null) dialogueBox.SetActive(false);
 

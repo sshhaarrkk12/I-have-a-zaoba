@@ -28,6 +28,7 @@ public class DormSceneManager : MonoBehaviour
 
     void Start()
     {
+        EnsureStatusBarAssigned();
         MorningRoutineState.SyncDay();
         isWashed = MorningRoutineState.WashingDone;
         isDressed = MorningRoutineState.DressingDone;
@@ -51,11 +52,34 @@ public class DormSceneManager : MonoBehaviour
         if (timeText != null)
             timeText.text = TimeManager.Instance.GetFormattedTime();
 
-        float minutes = TimeManager.Instance.MinutesToClass();
+        int minutes = Mathf.CeilToInt(TimeManager.Instance.MinutesToClass());
+        if (statusBar != null)
+        {
+            if (minutes > 0)
+                statusBar.text = $"距离上课还有 {minutes} 分钟！";
+        }
+
         if (minutes <= 15 && minutes > 0)
         {
             if (timeText != null) timeText.color = GamePalette.Bad;
-            if (statusBar != null) statusBar.text = $"距离上课还有 {(int)minutes} 分钟！";
+        }
+    }
+
+    void EnsureStatusBarAssigned()
+    {
+        if (statusBar != null) return;
+
+        TextMeshProUGUI[] texts = GetComponentsInChildren<TextMeshProUGUI>(true);
+        foreach (TextMeshProUGUI text in texts)
+        {
+            if (text == null) continue;
+
+            string objectName = text.gameObject.name.ToLowerInvariant();
+            if (objectName.Contains("status") || objectName.Contains("tip") || objectName.Contains("hint"))
+            {
+                statusBar = text;
+                return;
+            }
         }
     }
 
@@ -90,6 +114,7 @@ public class DormSceneManager : MonoBehaviour
     {
         if (isWashed) return;
 
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
         TimeManager.Instance.SpendTime(isQuick ? 0.083f : 0.25f);
         PlayerStats.Instance.ChangeMood(isQuick ? 2f : 8f);
         PlayerStats.Instance.AddFatigue(isQuick ? -2f : -8f);
@@ -97,6 +122,7 @@ public class DormSceneManager : MonoBehaviour
         MorningRoutineState.MarkDone("Washing");
         ShowStatus(isQuick ? "快速洗漱完毕" : "认真洗漱，神清气爽");
         BackToMain();
+        ShowStatChange(beforeStats);
     }
 
     public void DoChangeQuick() => DoChangeClothes("quick");
@@ -107,6 +133,7 @@ public class DormSceneManager : MonoBehaviour
     {
         if (isDressed) return;
 
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
         if (option == "quick") { TimeManager.Instance.SpendTime(0.05f); }
         else if (option == "normal") { TimeManager.Instance.SpendTime(0.1f); PlayerStats.Instance.ChangeMood(5f); }
         else { TimeManager.Instance.SpendTime(0.25f); PlayerStats.Instance.ChangeMood(12f); PlayerStats.Instance.AddFatigue(3f); }
@@ -114,6 +141,7 @@ public class DormSceneManager : MonoBehaviour
         MorningRoutineState.MarkDone("Dressing");
         ShowStatus("换好衣服了");
         BackToMain();
+        ShowStatChange(beforeStats);
     }
 
     public void DoPackCareful() => DoPackBag(true);
@@ -123,39 +151,50 @@ public class DormSceneManager : MonoBehaviour
     {
         if (isPacked) return;
 
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
+        string resultText;
         TimeManager.Instance.SpendTime(careful ? 0.1f : 0.05f);
         if (!careful && Random.value < 0.3f)
         {
             string[] items = { "课本", "水杯", "雨伞", "作业" };
-            ShowStatus($"忘带{items[Random.Range(0, items.Length)]}了！压力+8");
+            resultText = $"忘带{items[Random.Range(0, items.Length)]}了！压力+8";
             PlayerStats.Instance.AddStress(8f);
             PlayerStats.Instance.ChangeMood(-5f);
         }
-        else { ShowStatus("书包收拾好了"); }
+        else { resultText = "书包收拾好了"; }
         isPacked = true;
         MorningRoutineState.MarkDone("Packing");
+        ShowStatus(resultText);
         BackToMain();
+        ShowStatChange(beforeStats);
     }
 
     public void GoToCanteen()
     {
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
         PlayerStats.Instance.ConsumeInstantStamina(3f);
         PlayerStats.Instance.AddFatigue(2f);
-        GameManager.Instance.GoToCanteen();
+        ShowStatChange(beforeStats, () => GameManager.Instance.GoToCanteen());
     }
 
     public void GoOutDirect()
     {
+        StatsChangeSnapshot beforeStats = StatsChangeSummary.Capture();
         PlayerStats.Instance.ConsumeInstantStamina(3f);
         PlayerStats.Instance.AddFatigue(2f);
         if (!isWashed) PlayerStats.Instance.ChangeMood(-5f);
         if (!isPacked) PlayerStats.Instance.AddStress(5f);
-        GameManager.Instance.GoToCorridor();
+        ShowStatChange(beforeStats, () => GameManager.Instance.GoToCorridor());
     }
 
     void ShowStatus(string msg)
     {
         if (statusBar != null) statusBar.text = msg;
         else Debug.Log(msg);
+    }
+
+    void ShowStatChange(StatsChangeSnapshot beforeStats, System.Action onDone = null)
+    {
+        StatsChangeSummary.Show(StatsChangeSummary.Build(beforeStats), onDone);
     }
 }
