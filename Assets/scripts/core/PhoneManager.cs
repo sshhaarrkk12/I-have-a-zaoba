@@ -103,6 +103,7 @@ public class PhoneManager : MonoBehaviour
         phoneCanvas.gameObject.SetActive(true);
         if (TimeManager.Instance != null) TimeManager.Instance.isPaused = true;
         ShowHome();
+        DialogueManager.Instance?.RefreshClassCountdown();
     }
 
     public void ClosePhone()
@@ -110,6 +111,7 @@ public class PhoneManager : MonoBehaviour
         isOpen = false;
         if (phoneCanvas != null) phoneCanvas.gameObject.SetActive(false);
         if (TimeManager.Instance != null) TimeManager.Instance.isPaused = false;
+        DialogueManager.Instance?.RefreshClassCountdown();
     }
 
     // ==================== 页面切换 ====================
@@ -127,6 +129,7 @@ public class PhoneManager : MonoBehaviour
         HideAll();
         if (panel != null) panel.SetActive(true);
         currentPanel = panel;
+        DialogueManager.Instance?.RefreshClassCountdown();
     }
 
     void HideAll()
