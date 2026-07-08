@@ -11,6 +11,7 @@ public class StatBar
     public string label;
     public TextMeshProUGUI nameText;
     public TextMeshProUGUI valueText;
+    public Slider slider;
     public Image barFill;
     public bool isReversed;
     public bool fixedColor;
@@ -448,6 +449,7 @@ public class StatsHUD : MonoBehaviour
         var text = go.AddComponent<TextMeshProUGUI>();
         text.fontSize = 18f;
         text.alignment = TextAlignmentOptions.Center;
+        text.raycastTarget = false;
         return text;
     }
 
@@ -462,6 +464,7 @@ public class StatsHUD : MonoBehaviour
         bar.fixedBarColor = fixedBarColor;
         bar.nameText = FindNameText(root);
         bar.valueText = FindValueText(root, bar.nameText);
+        bar.slider = FindSlider(root);
         bar.barFill = FindFillImage(root);
 
         if (bar.nameText == null) bar.nameText = CreateText(root, "Name");
@@ -474,9 +477,14 @@ public class StatsHUD : MonoBehaviour
             bar.barFill.type = Image.Type.Filled;
             bar.barFill.fillMethod = Image.FillMethod.Horizontal;
         }
+        if (bar.slider == null)
+            bar.slider = CreateSlider(root, bar.barFill);
+
+        ConfigureSlider(bar.slider, bar.barFill);
 
         bar.nameText.text = label;
         bar.valueText.text = "0";
+        DisableBarRaycasts(root);
         return bar;
     }
 
@@ -512,6 +520,11 @@ public class StatsHUD : MonoBehaviour
         return null;
     }
 
+    Slider FindSlider(Transform root)
+    {
+        return root.GetComponentInChildren<Slider>(true);
+    }
+
     Image FindFillImage(Transform root)
     {
         var images = root.GetComponentsInChildren<Image>(true);
@@ -526,6 +539,45 @@ public class StatsHUD : MonoBehaviour
             fallback = image;
         }
         return fallback;
+    }
+
+    Slider CreateSlider(Transform root, Image fillImage)
+    {
+        Slider slider = root.GetComponent<Slider>();
+        if (slider == null)
+            slider = root.gameObject.AddComponent<Slider>();
+
+        if (fillImage != null)
+            slider.fillRect = fillImage.rectTransform;
+
+        return slider;
+    }
+
+    void ConfigureSlider(Slider slider, Image fillImage)
+    {
+        if (slider == null) return;
+
+        slider.minValue = 0f;
+        slider.maxValue = 100f;
+        slider.wholeNumbers = false;
+        slider.interactable = false;
+        slider.direction = Slider.Direction.LeftToRight;
+        slider.transition = Selectable.Transition.None;
+        slider.targetGraphic = null;
+
+        if (fillImage != null)
+        {
+            fillImage.fillAmount = 1f;
+            fillImage.raycastTarget = false;
+            slider.fillRect = fillImage.rectTransform;
+        }
+    }
+
+    void DisableBarRaycasts(Transform root)
+    {
+        var graphics = root.GetComponentsInChildren<Graphic>(true);
+        foreach (var graphic in graphics)
+            graphic.raycastTarget = false;
     }
 
     void FindAuxiliaryUI()
@@ -582,11 +634,34 @@ public class StatsHUD : MonoBehaviour
 
         float v = bar.displayValue;
         if (bar.valueText != null) bar.valueText.text = Mathf.RoundToInt(v).ToString();
+        Color barColor = bar.fixedColor ? bar.fixedBarColor : GetColor(v, bar.isReversed);
+
+        if (bar.slider != null)
+            bar.slider.value = Mathf.Clamp(v, bar.slider.minValue, bar.slider.maxValue);
+
         if (bar.barFill != null)
         {
-            bar.barFill.fillAmount = Mathf.Clamp01(v / 100f);
-            bar.barFill.color = bar.fixedColor ? bar.fixedBarColor : GetColor(v, bar.isReversed);
+            if (bar.slider == null)
+                bar.barFill.fillAmount = Mathf.Clamp01(v / 100f);
+
+            bar.barFill.color = barColor;
         }
+
+        ApplyFillColor(bar.slider, bar.barFill, barColor);
+    }
+
+    void ApplyFillColor(Slider slider, Image fallbackFill, Color color)
+    {
+        if (slider != null && slider.fillRect != null)
+        {
+            var graphics = slider.fillRect.GetComponentsInChildren<Graphic>(true);
+            foreach (var graphic in graphics)
+                graphic.color = color;
+            return;
+        }
+
+        if (fallbackFill != null)
+            fallbackFill.color = color;
     }
 
     Color GetColor(float v, bool reversed)

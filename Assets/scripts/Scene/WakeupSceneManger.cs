@@ -61,7 +61,7 @@ public class WakeUpSceneManager : MonoBehaviour
             wakeUpButton.interactable = false;
         }
 
-        if (groggProgressBar != null) groggProgressBar.value = 0f;
+        ConfigureGroggProgressBar();
 
         float currentHour = GetCurrentHour();
         bool reachedCalculatedWakeTime = currentHour >= stats.wakeUpTime - 0.01f;
@@ -85,6 +85,18 @@ public class WakeUpSceneManager : MonoBehaviour
     {
         TimeManager.OnTimeChanged -= OnTimeUpdate;
         TimeManager.OnAlarm -= OnAlarmRing;
+    }
+
+    void ConfigureGroggProgressBar()
+    {
+        if (groggProgressBar == null) return;
+
+        groggProgressBar.value = 0f;
+        groggProgressBar.interactable = false;
+
+        var graphics = groggProgressBar.GetComponentsInChildren<Graphic>(true);
+        foreach (var graphic in graphics)
+            graphic.raycastTarget = false;
     }
 
     void OnTimeUpdate(float hour) { }
