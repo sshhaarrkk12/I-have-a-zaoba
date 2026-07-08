@@ -53,11 +53,6 @@ public class DormSceneManager : MonoBehaviour
             timeText.text = TimeManager.Instance.GetFormattedTime();
 
         int minutes = Mathf.CeilToInt(TimeManager.Instance.MinutesToClass());
-        if (statusBar != null)
-        {
-            if (minutes > 0)
-                statusBar.text = $"距离上课还有 {minutes} 分钟！";
-        }
 
         if (minutes <= 15 && minutes > 0)
         {
